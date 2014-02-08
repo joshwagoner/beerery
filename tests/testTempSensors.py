@@ -2,7 +2,6 @@ import unittest
 from BeereryControl.sensors.TempSensors import TempSensor, ThermistorSensor
 
 class TempSensorTests(unittest.TestCase):
-
   def testTempSensor(self):
     sensor = TempSensor()
     self.failUnless(sensor.get_temp() is None)
