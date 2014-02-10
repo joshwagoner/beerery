@@ -4,10 +4,9 @@ import time
 
 class PidTests(unittest.TestCase):
   def testPidController(self):
-    p = pid.PidController(10, 1, 0.1, 0.02, 1000)
-    p.set_output_limits(-2,2)
+    p = pid.PidController(160, 2, 0.01, 0.01, 100)
     # p.mode = pid.PidController.MANUAL_MODE
-    val = 5
+    val = 60
 
     while True:
       p.input = val
@@ -16,7 +15,8 @@ class PidTests(unittest.TestCase):
         time.sleep(.01)
         continue
 
-      val += p.output
+      print p.output - 5
+      val += ((p.output - 5) / 100.0)
 
       print "output {}".format(p.output)
       print "val {}\n".format(val)

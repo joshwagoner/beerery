@@ -30,8 +30,8 @@ class PidController(object):
     self.kd = 0 # derivative gain
     self.set_point = set_point 
     self.sample_time_ms = sample_time_ms
-    self.min_out = -sys.maxint - 1
-    self.max_out = sys.maxint
+    self.min_out = 0
+    self.max_out = 100 # by default the pid will return "duty cycle" between 0-100%
     self.mode = PidController.AUTO_MODE 
     self.input = 0
     self.output = 0
