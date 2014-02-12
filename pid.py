@@ -21,22 +21,24 @@ class PidController(object):
   AUTO_MODE = 1
   MANUAL_MODE = 0
 
-  def __init__(self, set_point, kp, ki, kd, sample_time_ms):
+  # args: set_point, kp, ki, kd, sample_time_ms
+  def __init__(self, **kwargs):
+    # kwargs should be: {'kd': 0.01, 'ki': 0.01, 'kp': 2, 'set_point': 160, 'name': 'HLT_PID'}
     self.last_time = 0 # last time the pid function was calculated
     self.i_term = 0 # intergral term
     self.last_input = 0 # last input reading value
     self.kp = 0 # proportional gain
     self.ki = 0 # integral gain
     self.kd = 0 # derivative gain
-    self.set_point = set_point 
-    self.sample_time_ms = sample_time_ms
+    self.set_point = kwargs["set_point"]
+    self.sample_time_ms = kwargs["sample_time_ms"]
     self.min_out = 0
     self.max_out = 100 # by default the pid will return "duty cycle" between 0-100%
     self.mode = PidController.AUTO_MODE 
     self.input = 0
     self.output = 0
 
-    self.set_params(kp, ki, kd)
+    self.set_params(kwargs["kp"], kwargs["ki"], kwargs["kd"])
 
   def set_mode(self, mode):
     move_to_auto = self.mode == PidController.MANUAL_MODE and mode == PidController.AUTO_MODE
@@ -89,8 +91,10 @@ class PidController(object):
         error = self.set_point - self.input
         print "error {}".format(error)
         # add to running error total
+        print "i_term before {}".format(self.i_term)
         self.i_term += (self.ki * error)
         # clamp to min/max
+        print "i_term before clamp {}".format(self.i_term)
         self.i_term = clamp(self.i_term, self.min_out, self.max_out)
         
         print "i_term {}".format(self.i_term)

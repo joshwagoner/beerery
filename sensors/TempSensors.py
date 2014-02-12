@@ -23,6 +23,9 @@ class TempSensor(object):
   def sample(self):
     pass
 
+  def value_from_samples(self):
+    return 0.0
+
   def reset(self):
     pass
 
@@ -41,7 +44,7 @@ class ThermistorSensor(TempSensor):
     self.adc_sample_total = 0
     self.adc_sample_count = 0
 
-  def temp_from_samples(self):
+  def value_from_samples(self):
     adc_average = self.adc_sample_total / self.adc_sample_count
     volts = spireader.adc_to_volts(adc_average)
 
@@ -60,4 +63,4 @@ class ThermistorSensor(TempSensor):
       self.sample()
       time.sleep(sample_sleep_s)
 
-    return self.temp_from_samples()
+    return self.value_from_samples()
