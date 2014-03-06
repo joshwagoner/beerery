@@ -1,0 +1,9 @@
+[
+  {
+    "name": "log",
+    "store": {
+      "type": "file",
+      "path": "~/beerery_log.json"
+    }
+  }
+]

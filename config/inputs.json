@@ -1,0 +1,26 @@
+[
+  {
+    "type": "thermistor",
+    "adc_channel": 0,
+    "name": "HLT",
+    "log": "log"
+  },
+  {
+    "type": "thermistor",
+    "adc_channel": 1,
+    "name": "MLT",
+    "log": "log"
+  },
+  {
+    "type": "thermistor",
+    "adc_channel": 2,
+    "name": "BK",
+    "log": "log"
+  },
+  {
+    "type": "DS18B20",
+    "address": "28-000004f71e70",
+    "name": "BK2",
+    "log": "log"
+  }
+]

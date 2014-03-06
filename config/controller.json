@@ -1,0 +1,6 @@
+{
+	"control_sample_time_ms": 5000,
+	"logging_enabled": true,
+	"temp_probe_sample_count": 10,
+	"temp_probe_sample_ms": 10
+}

@@ -29,6 +29,9 @@ class TempSensor(object):
   def reset(self):
     pass
 
+  def units(self):
+    return "F"
+
 class ThermistorSensor(TempSensor):
   def __init__(self, adc_channel):
     self.adc_sample_total = 0
@@ -64,3 +67,9 @@ class ThermistorSensor(TempSensor):
       time.sleep(sample_sleep_s)
 
     return self.value_from_samples()
+
+class OneWireTempSensor(TempSensor):
+  def __init__(self, address):
+    self.address = address
+
+    print self.address

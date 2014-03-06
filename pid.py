@@ -85,22 +85,16 @@ class PidController(object):
     time_change = now - self.last_time
 
     if time_change >= self.sample_time_ms:
-        print "time_change {}".format(time_change)
-
         # calc error
         error = self.set_point - self.input
-        print "error {}".format(error)
+        
         # add to running error total
-        print "i_term before {}".format(self.i_term)
         self.i_term += (self.ki * error)
         # clamp to min/max
-        print "i_term before clamp {}".format(self.i_term)
         self.i_term = clamp(self.i_term, self.min_out, self.max_out)
         
-        print "i_term {}".format(self.i_term)
         # input derivative
         d_input = self.input - self.last_input
-        print "d_input {}".format(d_input)
 
         # save things for next time
         self.last_input = self.input

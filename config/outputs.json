@@ -1,0 +1,37 @@
+[
+  {
+    "pin": 25,
+    "active": true,
+    "name": "HLT",
+    "type": {
+      "controller": "PID",
+      "config": {
+        "set_point": 75,
+        "kp": 50,
+        "ki": 0.025,
+        "kd": 0.05
+      }
+    },
+    "input": "MLT",
+    "mode": "TPC",
+    "log": "log"
+  },
+  {
+    "id": 1,
+    "pin": 8,
+    "active": false,
+    "name": "BK",
+    "type": {
+      "controller": "PID",
+      "config": {
+        "set_point": 70,
+        "kp": 25,
+        "ki": 5,
+        "kd": 5
+      }
+    },
+    "input": "BK",
+    "mode": "TPC",
+    "log": "log"
+  }
+]

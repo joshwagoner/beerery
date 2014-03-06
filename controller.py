@@ -4,30 +4,36 @@
 # TODO: convert this to a class?
 #
 import time
+from datetime import datetime
 import BeereryControl.sensors.TempSensors as TempSensors
 import BeereryControl.pid as PID
+import json
+from pprint import pprint
 from threading import Thread
-
-# try import rpi libs, when under test may not load
+import logging
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 import RPIO
 
 THERMISTOR_INPUT_TYPE = "thermistor"
+ONEWIRE_TEMP_INPUT_TYPE = "DS18B20"
 PID_OUTPUT_CONTROLLER_TYPE = "PID"
 TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE = "TPC"
 PULSE_WIDTH_MODULATION_OUTPUT_MODE = "PWM"
 
 app_params = {}
 app_params_current = False
+config_file_observer = None
 
 inputs = []
 outputs = []
 
 class Input(object):
-  def __init__(self, name, adc_channel, input_object):
+  def __init__(self, name, input_object, units):
     self.name = name
-    self.adc_channel = adc_channel
     self.input_impl = input_object
     self.last_value = 0
+    self.units = units
 
 class Output(object):
   def __init__(self, output_handler, **kwargs):
@@ -39,6 +45,11 @@ class Output(object):
     self.pin = kwargs["pin"]
     self.active = kwargs["active"]
 
+class ConfigFileWatcher(FileSystemEventHandler):
+  def on_any_event(self, event):
+    global app_params_current
+    app_params_current = False
+
 def connect_inputs():
   input_dict = {}
 
@@ -47,21 +58,16 @@ def connect_inputs():
     input_type = input["type"]
     if input_type == THERMISTOR_INPUT_TYPE:
       input_handler = TempSensors.ThermistorSensor(input["adc_channel"])
+    elif input_type == ONEWIRE_TEMP_INPUT_TYPE:
+      input_handler = TempSensors.OneWireTempSensor(input["address"])
     else:
       raise Exception("Unknown input type '{}'".format(input_type))
 
-    io_input = Input(input["name"], input["adc_channel"], input_handler)
+    io_input = Input(input["name"], input_handler, input_handler.units())
 
     input_dict[input["name"]] = io_input
 
   return input_dict
-
-def app_config_with_name(name):
-  for config in app_params["configs"]:
-    if config["name"] == name:
-      return config
-
-  return None
 
 def connect_outputs():
   output_dict = {}
@@ -74,7 +80,7 @@ def connect_outputs():
     output_type = output["type"]
     output_type_controller = output_type["controller"]
     if output_type_controller == PID_OUTPUT_CONTROLLER_TYPE:
-      output_handler = PID.PidController(sample_time_ms=app_params["control_sample_time_ms"], **app_config_with_name(output_type["config"])) #TODO: update PidController to take a dictionary input
+      output_handler = PID.PidController(sample_time_ms=app_params["control_sample_time_ms"], **output_type["config"]) #TODO: update PidController to take a dictionary input
 
       if output["mode"] == TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE:
         output_handler.set_output_limits(0, 100) #app_params["control_sample_time_ms"])
@@ -92,91 +98,52 @@ def connect_outputs():
 
   return output_dict
 
+def log(message):
+  pprint(message)
+
+def load_param_from_json_file(config_name, file_path, log_name):
+  log("loading {}...".format(log_name))
+  
+  input_json = open(file_path)
+  dict_from_json = json.load(input_json)
+  if (config_name):
+    app_params[config_name] = dict_from_json
+  input_json.close()
+  
+  log("{} loaded.".format(log_name))
+  log(" data:")
+  log(dict_from_json)
+
+  return dict_from_json
+
 def read_app_params():
   global app_params
   global app_params_current
+  global config_file_observer
 
   if app_params_current == True:
     return False
 
-  # todo: this should come from several json files, and be an argument somewhere to support testing
-  app_params["control_sample_time_ms"] = 5000 # <- not sure if this should be global or on individual parts of the system, global for now though
-  app_params["logging_enabled"] = True
+  if config_file_observer:
+    config_file_observer.stop()
 
-  app_params["inputs"] = [{
-    "adc_channel" : 0,
-    "name" : "HLT",
-    "type" : "thermistor",
-    "log": "log_database"
-  },
-  {
-    "adc_channel" : 1,
-    "name" : "MLT",
-    "type" : "thermistor",
-    "log": "log_database"
-  },
-  {
-    "adc_channel" : 2,
-    "name" : "BK",
-    "type" : "thermistor",
-    "log": "log_database"
-  }]
+  config_file_observer = Observer()
+  file_change_handler = ConfigFileWatcher()
 
-  app_params["outputs"] = [{
-    "pin": 25,
-    "active": True,
-    "name": "HLT",
-    "type": {
-      "controller": "PID",
-      "config": "HLT_PID" # <- this should point to a seperate file (hlt_pid.json?) so that it can easily be reloaded?
-    },
-    "input": "MLT",
-    "mode": TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE,
-    "log": "log_database"
-  },
-  {
-    "id": 1,
-    "pin": 8,
-    "active": False,
-    "name": "BK",
-    "type": {
-      "controller": "PID",
-      "config": "BK_PID"
-    },
-    "input": "BK",
-    "mode": TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE,
-    "log": "log_database"
-  }]
+  controller_config = load_param_from_json_file(None, "config/controller.json", "controller config")
+  app_params.update(controller_config)
 
-  app_params["configs"] = [{
-    "name": "HLT_PID",
-    "set_point": 52,
-    "kp": 50, 
-    "ki": 0.025, 
-    "kd": 0.05
-  },
-  {
-    "name": "BK_PID",
-    "set_point": 70,
-    "kp": 25, 
-    "ki": 5, 
-    "kd": 5
-  }]
+  # load the inputs config
+  load_param_from_json_file("inputs", "config/inputs.json", "inputs")
 
-  app_params["logs"] = [{
-    "name": "log_database",
-    # "store": {
-    #   "type": "mongo_db",
-    #   "connect_string": "mongo_db_connect"
-    # }
-    "store": {
-      "type": "file",
-      "path": "~/beerery_log.json"
-    }
-  }]
+  # load the outputs
+  load_param_from_json_file("outputs", "config/outputs.json", "outputs")
 
-  # print "app_params loaded:"
-  # print app_params
+  # load log configs
+  load_param_from_json_file("logs", "config/logs.json", "logs")
+
+  config_file_observer.schedule(file_change_handler, "config", recursive=False);
+  config_file_observer.start()
 
   app_params_current = True
   return True
@@ -199,6 +166,7 @@ def set_pin_for_ms(pin, ms):
 def control(loop_callback=None):
   global inputs
   global outputs
+  global app_params
   # do any onetime setup
 
   #TODO: setup config files polling, not yet supported, requires full restart
@@ -209,18 +177,16 @@ def control(loop_callback=None):
         inputs = connect_inputs()
         outputs = connect_outputs();
 
-        # create any needed output files that do not exist
-
         # connect logging backends - db, file, etc.
 
       # begin 
-      print "Processing..."
+
 
       # sample input values
       input_objects = inputs.values()
 
-      sample_count = 10 # <- make sample count configurable
-      sample_interval_s = 0.01 # <- make sample sleep amount configurable
+      sample_count = app_params["temp_probe_sample_count"] 
+      sample_interval_s = app_params["temp_probe_sample_ms"] / 1000
 
       for input in input_objects:
         input.input_impl.reset()
@@ -232,9 +198,18 @@ def control(loop_callback=None):
 
       for input in input_objects:
         input.last_value = input.input_impl.value_from_samples()
-        print input.last_value
 
-      # write input values to state files, async
+        # write input values to state files
+        # TODO: maybe make this async via pushing onto separate thread, eventually.
+        #       should probably also write to a temp file and then atomically move to "current" file
+        with open("state/input_{}.json".format(input.name), 'w+') as outfile:
+          json.dump({
+              "name": input.name,
+              "value": input.last_value,
+              "units": input.units,
+              "date_servertime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+              "date_utc": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") 
+            }, outfile)
 
       # process outputs
       output_objects = outputs.values()
@@ -257,12 +232,21 @@ def control(loop_callback=None):
           elif output.mode == PULSE_WIDTH_MODULATION_OUTPUT_MODE:
             pass #not yet implemented
 
-        # print "Input for output '{}' = '{}'".format(output.name, input_for_output.name)
+          # write output values to state files
+          # TODO: as above maybe make this async
+          with open("state/output_{}.json".format(output.name), 'w+') as outfile:
+            json.dump({
+                "name": output.name,
+                "mode": output.mode,
+                "output_value": output_controller.output,
+                "input_value": output_controller.input,
+                "input_name": input_for_output.name,
+                "date_servertime": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "date_utc": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S") 
+              }, outfile)
 
       if loop_callback != None:
         loop_callback()
-
-      print "Sleeping..."
 
       time.sleep(app_params["control_sample_time_ms"]/1000.0 - (sample_count * sample_interval_s + sample_interval_s))
   finally:
@@ -270,3 +254,6 @@ def control(loop_callback=None):
 
     global app_params_current
     app_params_current = False
+
+    global config_file_observer
+    config_file_observer.stop()
