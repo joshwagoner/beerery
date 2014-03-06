@@ -2,6 +2,12 @@ import time
 import math
 import BeereryControl
 from BeereryControl.gpio import spireader
+import os
+ 
+os.system('modprobe w1-gpio')
+os.system('modprobe w1-therm')
+ 
+ONE_WIRE_BASE_DIR = '/sys/bus/w1/devices/'
 
 def ohm_to_f(x):
   A               = 0.0011371549 #0.00116597
@@ -30,7 +36,7 @@ class TempSensor(object):
     pass
 
   def units(self):
-    return "F"
+    return "f"
 
 class ThermistorSensor(TempSensor):
   def __init__(self, adc_channel):
@@ -71,5 +77,38 @@ class ThermistorSensor(TempSensor):
 class OneWireTempSensor(TempSensor):
   def __init__(self, address):
     self.address = address
+    self.device_folder = ONE_WIRE_BASE_DIR + self.address
+    self.device_file = self.device_folder + '/w1_slave'
 
-    print self.address
+  def read_temp_file(self):
+    f = open(self.device_file, 'r')
+    lines = f.readlines()
+    f.close()
+    return lines
+
+  def read_temp(self):
+    lines = self.read_temp_file()
+    if lines[0].strip()[-3:] != 'YES':
+        return 0;
+    equals_pos = lines[1].find('t=')
+    if equals_pos != -1:
+        temp_string = lines[1][equals_pos+2:]
+        temp_c = float(temp_string) / 1000.0
+        temp_f = temp_c * 9.0 / 5.0 + 32.0
+        return temp_f
+
+  def sample(self):
+    # no need to sample, the onewire seems very consistent
+    # TODO: enable a way for the temp sensor config to indicate no need to sample
+    pass
+
+  def reset(self):
+    # no need to sample, the onewire seems very consistent
+    pass
+
+  def value_from_samples(self):
+    return self.read_temp()
+
+  def get_temp(self, sample_count, sample_sleep_s):
+    return self.read_temp()
+    

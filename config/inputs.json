@@ -19,8 +19,9 @@
   },
   {
     "type": "DS18B20",
-    "address": "28-000004f71e70",
+    "address": "28-000004f65c4d",
     "name": "BK2",
-    "log": "log"
+    "log": "log",
+    "sample_count": 0
   }
 ]

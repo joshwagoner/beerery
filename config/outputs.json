@@ -1,7 +1,7 @@
 [
   {
     "pin": 25,
-    "active": true,
+    "active": false,
     "name": "HLT",
     "type": {
       "controller": "PID",
@@ -19,7 +19,7 @@
   {
     "id": 1,
     "pin": 8,
-    "active": false,
+    "active": true,
     "name": "BK",
     "type": {
       "controller": "PID",
@@ -30,7 +30,7 @@
         "kd": 5
       }
     },
-    "input": "BK",
+    "input": "BK2",
     "mode": "TPC",
     "log": "log"
   }

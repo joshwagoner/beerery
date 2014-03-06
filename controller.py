@@ -99,7 +99,8 @@ def connect_outputs():
   return output_dict
 
 def log(message):
-  pprint(message)
+  # pprint(message)
+  pass
 
 def load_param_from_json_file(config_name, file_path, log_name):
   log("loading {}...".format(log_name))
