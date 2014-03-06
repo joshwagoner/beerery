@@ -3,19 +3,37 @@
     "type": "thermistor",
     "adc_channel": 0,
     "name": "HLT",
-    "log": "log"
+    "log": "log",
+    "coefficients": {
+      "a": 0.0011371549,
+      "b": 0.0002325949,
+      "c": 0,
+      "d": 9.54e-8
+    }
   },
   {
     "type": "thermistor",
     "adc_channel": 1,
     "name": "MLT",
-    "log": "log"
+    "log": "log",
+    "coefficients": {
+      "a": 0.0011371549,
+      "b": 0.0002325949,
+      "c": 0,
+      "d": 9.54e-8
+    }
   },
   {
     "type": "thermistor",
     "adc_channel": 2,
     "name": "BK",
-    "log": "log"
+    "log": "log",
+    "coefficients": {
+      "a": 0.0011371549,
+      "b": 0.0002325949,
+      "c": 0,
+      "d": 9.54e-8
+    }
   },
   {
     "type": "DS18B20",

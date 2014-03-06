@@ -7,6 +7,7 @@
       "controller": "PID",
       "config": {
         "set_point": 75,
+        "mode": 0,
         "kp": 50,
         "ki": 0.025,
         "kd": 0.05
@@ -25,6 +26,7 @@
       "controller": "PID",
       "config": {
         "set_point": 70,
+        "mode": 0,
         "kp": 25,
         "ki": 5,
         "kd": 5
