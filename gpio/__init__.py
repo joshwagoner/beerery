@@ -1,7 +1,7 @@
 import spidev
 
 class spireader:
-	_refVoltage = 3.324
+	_refVoltage = 3.3
 	_spi = None
 
 	@staticmethod
@@ -20,7 +20,7 @@ class spireader:
 	@staticmethod
 	def adc_to_volts(data):
 		volts = (data / 1023.0) * spireader._refVoltage
-		volts = round(volts, 4)
+		volts = round(volts, 10)
 		return volts
 
 	@staticmethod

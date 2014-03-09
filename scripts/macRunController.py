@@ -10,20 +10,25 @@ sys.modules['RPIO'] = rpio_mock
 sys.modules['spidev'] = mock.Mock()
 
 os.system = mock.Mock();
-
+# test onewire address: 28-000004f71e70
 import BeereryControl.controller as ctrl
 
 class Runner(object):
   @patch('BeereryControl.sensors.TempSensors.ThermistorSensor', autospec=True)
   @patch('BeereryControl.sensors.TempSensors.OneWireTempSensor', autospec=True)
-  def run(self, mock_onewire, mock_thermistor):
+  @patch('BeereryControl.sensors.TempSensors.TMP36TempSensor', autospec=True)
+  def run(self, mock_tmp, mock_onewire, mock_thermistor):
     therm = mock_thermistor.return_value
-    therm.value_from_samples.return_value = 55.25
+    therm.get_temp.return_value = 55.25
     therm.units.return_value = "f"
 
     onewire = mock_onewire.return_value
-    onewire.value_from_samples.return_value = 70.25
+    onewire.get_temp.return_value = 70.25
     onewire.units.return_value = "f"
+
+    tmp = mock_tmp.return_value
+    tmp.get_temp.return_value = 75.25
+    tmp.units.return_value = "f"
 
     ctrl.control(self.onEachControlLoop)
 

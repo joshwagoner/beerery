@@ -17,6 +17,7 @@ import RPIO
 
 THERMISTOR_INPUT_TYPE = "thermistor"
 ONEWIRE_TEMP_INPUT_TYPE = "DS18B20"
+TMP36_TEMP_INPUT_TYPE = "TMP36"
 PID_OUTPUT_CONTROLLER_TYPE = "PID"
 TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE = "TPC"
 PULSE_WIDTH_MODULATION_OUTPUT_MODE = "PWM"
@@ -60,6 +61,8 @@ def connect_inputs():
       input_handler = TempSensors.ThermistorSensor(input["adc_channel"])
     elif input_type == ONEWIRE_TEMP_INPUT_TYPE:
       input_handler = TempSensors.OneWireTempSensor(input["address"])
+    elif input_type == TMP36_TEMP_INPUT_TYPE:
+      input_handler = TempSensors.TMP36TempSensor(input["adc_channel"])
     else:
       raise Exception("Unknown input type '{}'".format(input_type))
 
@@ -76,11 +79,12 @@ def connect_outputs():
     if output["active"] != True:
         continue
 
+    log("output: {}".format(output["name"]))
     output_handler = None
     output_type = output["type"]
     output_type_controller = output_type["controller"]
     if output_type_controller == PID_OUTPUT_CONTROLLER_TYPE:
-      output_handler = PID.PidController(sample_time_ms=app_params["control_sample_time_ms"], **output_type["config"]) #TODO: update PidController to take a dictionary input
+      output_handler = PID.PidController(sample_time_ms=app_params["control_sample_time_ms"], **output_type["config"])
 
       if output["mode"] == TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE:
         output_handler.set_output_limits(0, 100) #app_params["control_sample_time_ms"])
@@ -99,8 +103,8 @@ def connect_outputs():
   return output_dict
 
 def log(message):
-  # pprint(message)
-  pass
+  pprint(message)
+  # pass
 
 def load_param_from_json_file(config_name, file_path, log_name):
   log("loading {}...".format(log_name))
@@ -170,35 +174,19 @@ def control(loop_callback=None):
   global app_params
   # do any onetime setup
 
-  #TODO: setup config files polling, not yet supported, requires full restart
-
   try: 
     while True:
       if read_app_params():
         inputs = connect_inputs()
         outputs = connect_outputs();
 
-        # connect logging backends - db, file, etc.
+        # TODO: connect logging backends - db, file, etc.
 
-      # begin 
-
-
-      # sample input values
+      # start with the inputs
       input_objects = inputs.values()
 
-      sample_count = app_params["temp_probe_sample_count"] 
-      sample_interval_s = app_params["temp_probe_sample_ms"] / 1000
-
       for input in input_objects:
-        input.input_impl.reset()
-
-      for x in xrange(0,sample_count): 
-        for input in input_objects:
-          input.input_impl.sample()
-        time.sleep(sample_interval_s) 
-
-      for input in input_objects:
-        input.last_value = input.input_impl.value_from_samples()
+        input.last_value = input.input_impl.get_temp()
 
         # write input values to state files
         # TODO: maybe make this async via pushing onto separate thread, eventually.
@@ -226,12 +214,13 @@ def control(loop_callback=None):
           value_computed = output_controller.compute()
 
           if (output_controller.output == None or value_computed == False):
+            log("skipping output '{}': output_controller.output = {}, value_computed = {}".format(output.name, output_controller.output, value_computed))
             continue # nothing to do with this controller
           
           if output.mode == TIME_PROPORTIONAL_CONTROL_OUTPUT_MODE:
             set_pin_for_ms(output.pin, output_controller.output/100*app_params["control_sample_time_ms"])
           elif output.mode == PULSE_WIDTH_MODULATION_OUTPUT_MODE:
-            pass #not yet implemented
+            pass #not yet implemented, tpc is probably adequate
 
           # write output values to state files
           # TODO: as above maybe make this async
@@ -249,7 +238,8 @@ def control(loop_callback=None):
       if loop_callback != None:
         loop_callback()
 
-      time.sleep(app_params["control_sample_time_ms"]/1000.0 - (sample_count * sample_interval_s + sample_interval_s))
+      # TODO: keep track of how long the above takes and subtract that from the sleep time
+      time.sleep(app_params["control_sample_time_ms"]/1000.0)
   finally:
     RPIO.cleanup()
 

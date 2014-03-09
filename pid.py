@@ -23,7 +23,7 @@ class PidController(object):
 
   # args: set_point, kp, ki, kd, sample_time_ms
   def __init__(self, **kwargs):
-    # kwargs should be: {'kd': 0.01, 'ki': 0.01, 'kp': 2, 'set_point': 160, 'name': 'HLT_PID'}
+    # kwargs should be: {'mode': 1, 'kd': 0.01, 'ki': 0.01, 'kp': 2, 'set_point': 160} or {'mode': 0, "output": 75}
     self.last_time = 0 # last time the pid function was calculated
     self.i_term = 0 # intergral term
     self.last_input = 0 # last input reading value
@@ -34,11 +34,15 @@ class PidController(object):
     self.sample_time_ms = kwargs["sample_time_ms"]
     self.min_out = 0
     self.max_out = 100 # by default the pid will return "duty cycle" between 0-100%
-    self.mode = PidController.AUTO_MODE 
+    self.mode = kwargs["mode"] 
     self.input = 0
     self.output = 0
 
-    self.set_params(kwargs["kp"], kwargs["ki"], kwargs["kd"])
+    if self.mode == PidController.AUTO_MODE:
+        self.set_params(kwargs["kp"], kwargs["ki"], kwargs["kd"])
+    else:
+        self.set_mode(PidController.MANUAL_MODE)
+        self.output = kwargs["output"]
 
   def set_mode(self, mode):
     move_to_auto = self.mode == PidController.MANUAL_MODE and mode == PidController.AUTO_MODE
@@ -77,8 +81,8 @@ class PidController(object):
 
   def compute(self):
     if self.mode == PidController.MANUAL_MODE:
-        self.output = None
-        return False
+        # just return, output should already be set in manual
+        return True
 
     # calculate time since last compute
     now = millis()

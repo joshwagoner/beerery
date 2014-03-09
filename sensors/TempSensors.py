@@ -9,7 +9,7 @@ os.system('modprobe w1-therm')
  
 ONE_WIRE_BASE_DIR = '/sys/bus/w1/devices/'
 
-def ohm_to_f(x):
+def thermistor_ohm_to_f(x):
   A               = 0.0011371549 #0.00116597
   B               = 0.0002325949 #0.000220635
   C               = 0 #1.81284e-06
@@ -26,15 +26,6 @@ class TempSensor(object):
   def get_temp(self):
     pass
 
-  def sample(self):
-    pass
-
-  def value_from_samples(self):
-    return 0.0
-
-  def reset(self):
-    pass
-
   def units(self):
     return "f"
 
@@ -42,7 +33,7 @@ class ThermistorSensor(TempSensor):
   def __init__(self, adc_channel):
     self.adc_sample_total = 0
     self.adc_sample_count = 0
-    self.adc_channel = 0
+    self.adc_channel = adc_channel
     self.series_resistor = 10000
 
   def sample(self):
@@ -61,18 +52,37 @@ class ThermistorSensor(TempSensor):
 
     if volts:
       thermistor_ohms = round((spireader.reference_voltage() * self.series_resistor / volts) - self.series_resistor)
-      temp = ohm_to_f(thermistor_ohms)
+      temp = thermistor_ohm_to_f(thermistor_ohms)
 
     return temp
 
-  def get_temp(self, sample_count, sample_sleep_s):
+  def get_temp(self):
     self.reset()
+
+    sample_count = 10
+    sample_sleep_s = 0.01
 
     for x in xrange(0,sample_count):
       self.sample()
       time.sleep(sample_sleep_s)
 
     return self.value_from_samples()
+
+class TMP36TempSensor(TempSensor):
+  def __init__(self, adc_channel):
+    self.adc_channel = adc_channel
+
+  def get_temp(self):
+    adc_read = spireader.adc_read(self.adc_channel)
+    volts = spireader.adc_to_volts(adc_read)
+
+    temp = 0
+
+    if volts:
+      temp_c = (volts - 0.5) * 100.0
+      temp = temp_c * 1.8 + 32.0
+
+    return temp
 
 class OneWireTempSensor(TempSensor):
   def __init__(self, address):
@@ -86,7 +96,7 @@ class OneWireTempSensor(TempSensor):
     f.close()
     return lines
 
-  def read_temp(self):
+  def get_temp(self):
     lines = self.read_temp_file()
     if lines[0].strip()[-3:] != 'YES':
         return 0;
@@ -96,19 +106,4 @@ class OneWireTempSensor(TempSensor):
         temp_c = float(temp_string) / 1000.0
         temp_f = temp_c * 9.0 / 5.0 + 32.0
         return temp_f
-
-  def sample(self):
-    # no need to sample, the onewire seems very consistent
-    # TODO: enable a way for the temp sensor config to indicate no need to sample
-    pass
-
-  def reset(self):
-    # no need to sample, the onewire seems very consistent
-    pass
-
-  def value_from_samples(self):
-    return self.read_temp()
-
-  def get_temp(self, sample_count, sample_sleep_s):
-    return self.read_temp()
     

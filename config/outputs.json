@@ -1,19 +1,17 @@
 [
   {
     "pin": 25,
-    "active": false,
+    "active": true,
     "name": "HLT",
     "type": {
       "controller": "PID",
       "config": {
-        "set_point": 75,
+        "set_point": 212,
         "mode": 0,
-        "kp": 50,
-        "ki": 0.025,
-        "kd": 0.05
+        "output": 60
       }
     },
-    "input": "MLT",
+    "input": "HLT",
     "mode": "TPC",
     "log": "log"
   },
@@ -26,7 +24,7 @@
       "controller": "PID",
       "config": {
         "set_point": 70,
-        "mode": 0,
+        "mode": 1,
         "kp": 25,
         "ki": 5,
         "kd": 5

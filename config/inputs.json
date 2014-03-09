@@ -41,5 +41,11 @@
     "name": "BK2",
     "log": "log",
     "sample_count": 0
+  },
+  {
+    "type": "TMP36",
+    "adc_channel": 2,
+    "name": "BK3",
+    "log": "log"
   }
 ]
