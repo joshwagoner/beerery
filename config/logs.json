@@ -1,9 +1,7 @@
 [
   {
-    "name": "log",
-    "store": {
-      "type": "file",
-      "path": "~/beerery_log.json"
-    }
+    "type": "mongodb",
+    "db_uri": "mongodb://brew_pi:highbank@ds033699.mongolab.com:33699/brew_log",
+    "database": "brew_log"
   }
 ]

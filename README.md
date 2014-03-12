@@ -8,3 +8,7 @@ watchdog
 	- https://pypi.python.org/pypi/watchdog
 RPIO
 	- https://pypi.python.org/pypi/RPIO
+
+for mongodb logging:
+PyMongo
+	- http://api.mongodb.org/python/2.7rc0/
