@@ -32,11 +32,12 @@ inputs = []
 outputs = []
 
 class Input(object):
-  def __init__(self, name, input_object, units):
+  def __init__(self, name, input_object, units, adjustment):
     self.name = name
     self.input_impl = input_object
     self.last_value = 0
     self.units = units
+    self.adjustment = adjustment
 
 class Output(object):
   def __init__(self, output_handler, **kwargs):
@@ -83,7 +84,11 @@ def connect_inputs():
     else:
       raise Exception("Unknown input type '{}'".format(input_type))
 
-    io_input = Input(input["name"], input_handler, input_handler.units())
+    adjustment = None
+    if "adjustment" in input:
+      adjustment = input["adjustment"]
+
+    io_input = Input(input["name"], input_handler, input_handler.units(), adjustment)
 
     input_dict[input["name"]] = io_input
 
@@ -203,6 +208,9 @@ def control(loop_callback=None):
 
       for input in input_objects:
         input.last_value = input.input_impl.get_temp()
+
+        if input.adjustment:
+          input.last_value += input.adjustment
 
         # write input values to state files
         # TODO: maybe make this async via pushing onto separate thread, eventually.

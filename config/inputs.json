@@ -40,6 +40,7 @@
   {
     "type": "TMP36",
     "adc_channel": 2,
+    "adjustment": -2,
     "name": "BK3"
   }
 ]
