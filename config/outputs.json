@@ -12,8 +12,7 @@
       }
     },
     "input": "HLT",
-    "mode": "TPC",
-    "log": "log"
+    "mode": "TPC"
   },
   {
     "id": 1,
@@ -31,7 +30,6 @@
       }
     },
     "input": "BK2",
-    "mode": "TPC",
-    "log": "log"
+    "mode": "TPC"
   }
 ]
