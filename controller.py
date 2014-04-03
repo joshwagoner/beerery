@@ -57,6 +57,9 @@ class ConfigFileWatcher(FileSystemEventHandler):
 def connect_logs():
   logs = []
 
+  if not app_params["logging_enabled"]:
+    return logs
+
   for log in app_params["logs"]:
     logger = None
     log_type = log["type"]
@@ -73,6 +76,9 @@ def connect_inputs():
   input_dict = {}
 
   for input in app_params["inputs"]:
+    if input["active"] != True:
+        continue
+    
     input_handler = None
     input_type = input["type"]
     if input_type == THERMISTOR_INPUT_TYPE:

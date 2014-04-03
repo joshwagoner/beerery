@@ -82,6 +82,8 @@ class TMP36TempSensor(TempSensor):
       temp_c = (volts - 0.5) * 100.0
       temp = temp_c * 1.8 + 32.0
 
+    print volts
+
     return temp
 
 class OneWireTempSensor(TempSensor):

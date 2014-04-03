@@ -1,7 +1,7 @@
 [
   {
     "type": "mongodb",
-    "db_uri": "mongodb://brew_pi:highbank@ds033699.mongolab.com:33699/brew_log",
-    "database": "brew_log"
+    "db_uri": "[db uri goes here]",
+    "database": "[database name goes here]"
   }
 ]

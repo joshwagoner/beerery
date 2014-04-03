@@ -1,14 +1,16 @@
 [
   {
-    "pin": 25,
-    "active": true,
+    "pin": 18,
+    "active": false,
     "name": "HLT",
     "type": {
       "controller": "PID",
       "config": {
-        "set_point": 212,
-        "mode": 0,
-        "output": 60
+        "set_point": 148,
+        "mode": 1,
+        "kp": 10,
+        "ki": 1,
+        "kd": 5
       }
     },
     "input": "HLT",
@@ -17,19 +19,19 @@
   {
     "id": 1,
     "pin": 8,
-    "active": true,
+    "active": false,
     "name": "BK",
     "type": {
       "controller": "PID",
       "config": {
         "set_point": 70,
         "mode": 1,
-        "kp": 25,
-        "ki": 5,
+        "kp": 10,
+        "ki": 1,
         "kd": 5
       }
     },
-    "input": "BK2",
+    "input": "BK",
     "mode": "TPC"
   }
 ]
