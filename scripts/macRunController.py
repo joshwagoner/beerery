@@ -11,12 +11,12 @@ sys.modules['spidev'] = mock.Mock()
 
 os.system = mock.Mock();
 # test onewire address: 28-000004f71e70
-import BeereryControl.controller as ctrl
+import beerery.controller as ctrl
 
 class Runner(object):
-  @patch('BeereryControl.sensors.TempSensors.ThermistorSensor', autospec=True)
-  @patch('BeereryControl.sensors.TempSensors.OneWireTempSensor', autospec=True)
-  @patch('BeereryControl.sensors.TempSensors.TMP36TempSensor', autospec=True)
+  @patch('beerery.sensors.TempSensors.ThermistorSensor', autospec=True)
+  @patch('beerery.sensors.TempSensors.OneWireTempSensor', autospec=True)
+  @patch('beerery.sensors.TempSensors.TMP36TempSensor', autospec=True)
   def run(self, mock_tmp, mock_onewire, mock_thermistor):
     therm = mock_thermistor.return_value
     therm.get_temp.return_value = 55.25

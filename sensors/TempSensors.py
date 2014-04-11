@@ -1,7 +1,7 @@
 import time
 import math
-import BeereryControl
-from BeereryControl.gpio import spireader
+import beerery
+from beerery.gpio import spireader
 import os
  
 os.system('modprobe w1-gpio')

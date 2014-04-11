@@ -5,9 +5,9 @@
 #
 import time
 from datetime import datetime
-import BeereryControl.sensors.TempSensors as TempSensors
-import BeereryControl.loggers as loggers
-import BeereryControl.pid as PID
+import beerery.sensors.TempSensors as TempSensors
+import beerery.loggers as loggers
+import beerery.pid as PID
 import json
 from pprint import pprint
 from threading import Thread

@@ -1,4 +1,4 @@
 {
-	"control_sample_time_ms": 5000,
+	"control_sample_time_ms": 1000,
 	"logging_enabled": false
 }
