@@ -1,7 +1,5 @@
-[
-  {
-    "type": "mongodb",
-    "db_uri": "[db uri goes here]",
-    "database": "[database name goes here]"
-  }
-]
+[{
+	"type": "mongodb",
+	"db_uri": "[db uri goes here]",
+	"database": "[database name goes here]"
+}]

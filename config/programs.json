@@ -1,66 +1,46 @@
-[
-	{
-		"name":"normal_brew",
-		"description":"Standard Brewing Program",
-		"comment":"really rough outline of future 'program' support for automating changes to config",
-		"steps": [
-			{
-				"name":"prepare_hlt",
-				"description":"Bring the HLT water to close to strike temp",
-				"actions":[
-					{
-						"description": "100% heat to 145"
-					},
-					{
-						"description": "PID to 150",
-						"end":"hold"
-					},
-					{
-						"action":"alarm,wait"
-					}
-				]
-			},
-			{
-				"name":"mash",
-				"description":"Bring the HLT water to close to strike temp",
-				"actions":[
-					{
-						"description": "Mash - PID at 150",
-						"duration":60
-					},
-					{
-						"description": "Mash out - PID to 165",
-						"end":"hold"
-					},
-					{
-						"action":"alarm,wait"
-					}
-				]
-			}
-			{
-				"name":"boil",
-				"description":"Boil",
-				"actions":[
-					{
-						"description": "100% heat to 208"
-					},
-					{
-						"description": "PID at 210",
-						"end":"hold"
-					},
-					{
-						"action":"alarm,wait"
-					},
-					{
-						"description": "75% heat for boil",
-						"duration":60,
-						"end":"off"
-					},
-					{
-						"action":"alarm,wait"
-					}
-				]
-			}
-		]
-	}
-]
+[{
+	"name": "normal_brew",
+	"description": "Standard Brewing Program",
+	"comment": "really rough outline of future 'program' support for automating changes to config",
+	"steps": [{
+		"name": "prepare_hlt",
+		"description": "Bring the HLT water to close to strike temp",
+		"actions": [{
+			"description": "100% heat to 145"
+		}, {
+			"description": "PID to 150",
+			"end": "hold"
+		}, {
+			"action": "alarm,wait"
+		}]
+	}, {
+		"name": "mash",
+		"description": "Bring the HLT water to close to strike temp",
+		"actions": [{
+			"description": "Mash - PID at 150",
+			"duration": 60
+		}, {
+			"description": "Mash out - PID to 165",
+			"end": "hold"
+		}, {
+			"action": "alarm,wait"
+		}]
+	}, {
+		"name": "boil",
+		"description": "Boil",
+		"actions": [{
+			"description": "100% heat to 208"
+		}, {
+			"description": "PID at 210",
+			"end": "hold"
+		}, {
+			"action": "alarm,wait"
+		}, {
+			"description": "75% heat for boil",
+			"duration": 60,
+			"end": "off"
+		}, {
+			"action": "alarm,wait"
+		}]
+	}]
+}]

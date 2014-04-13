@@ -1,4 +1,6 @@
-This is the BeereryControl readme.
+__beerery readme__
+
+Raspberry Pi home brewery control.
 
 Required libs:
 
