@@ -2,6 +2,7 @@
 	"name": "normal_brew",
 	"description": "Standard Brewing Program",
 	"comment": "really rough outline of future 'program' support for automating changes to config",
+	"active": false,
 	"steps": [{
 		"name": "prepare_hlt",
 		"description": "Bring the HLT water to close to strike temp",
