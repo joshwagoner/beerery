@@ -13,8 +13,12 @@ class Program(object):
     def __init__(self, program_name):
         self.name = program_name
 
-    def run_for_time(self, current_time):
-        """calculate any changes needed based on the time"""
+    def run(self):
+        """
+        calculate any changes needed based on the time. 
+        returns True if an input or output change resulted
+        """
+        return False
 
     def start(self):
         """activate the program and start running it"""

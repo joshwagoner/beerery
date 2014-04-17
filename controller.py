@@ -3,18 +3,19 @@ module for control server processes
 """
 import time
 from datetime import datetime
-import beerery.sensors.TempSensors as TempSensors
+import beerery.sensors.tempsensors as tempsensors
 import beerery.loggers as loggers
 import beerery.pid as PID
 import beerery.constants as constants
 import beerery.fileio as fileio
+import beerery.program as program
 from pprint import pprint
-from threading import Thread
+from threading import Thread, Event, Lock
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 import RPIO  # only available on the raspberry pi, pylint: disable=F0401
 
-DEV_LOGGING = False
+DEV_LOGGING = True
 
 
 def log(message):
@@ -23,18 +24,40 @@ def log(message):
         pprint(message)
 
 
+def millis():
+    """returns current time as milliseconds"""
+    return int(round(time.time() * 1000))
+
+
 class Input(object):
 
     """
     Class representing an input sensor
     """
 
-    def __init__(self, name, input_object, units, adjustment):
+    def __init__(self, name, adjustment):
         self.name = name
-        self.input_impl = input_object
+        self.input_impl = None
         self.last_value = 0
-        self.units = units
         self.adjustment = adjustment
+
+    def set_type(self, input_type, input_config):
+        """
+        create the proper handler/reader for retrieving the input values
+        """
+        if input_type == constants.THERMISTOR_INPUT_TYPE:
+            input_handler = tempsensors.ThermistorSensor(
+                input_config["adc_channel"])
+        elif input_type == constants.ONEWIRE_TEMP_INPUT_TYPE:
+            input_handler = tempsensors.OneWireTempSensor(
+                input_config["address"])
+        elif input_type == constants.TMP36_TEMP_INPUT_TYPE:
+            input_handler = tempsensors.TMP36TempSensor(
+                input_config["adc_channel"])
+        else:
+            raise Exception("Unknown input type '{}'".format(input_type))
+
+        self.input_impl = input_handler
 
     def calculate(self):
         """
@@ -48,7 +71,7 @@ class Input(object):
         input_state = {
             "name": self.name,
             "value": self.last_value,
-            "units": self.units,
+            "units": self.input_impl.units(),
             "date_servertime": datetime.now().strftime(constants.DATE_FORMAT),
             "date_utc": datetime.utcnow().strftime(
             constants.DATE_FORMAT)
@@ -65,38 +88,44 @@ class Output(object):
     Class representing an output pin
     """
 
-    def __init__(self, output_handler, **kwargs):
-        self.name = kwargs["name"]
+    def __init__(self, output_config):
+        self.name = output_config["name"]
+        self.controller = None
+        self.input = output_config["input"]
+        self.mode = output_config["mode"]
+        self.pin = output_config["pin"]
+
+    def set_type(self, output_type, output_config, sample_ms):
+        """creates the controller object based on the config settings"""
+        output_handler = None
+        output_type_controller = output_type["controller"]
+        if output_type_controller == constants.PID_OUTPUT_CONTROLLER_TYPE:
+            output_handler = PID.PidController(sample_time_ms=sample_ms,
+                                               **output_type["config"])
+
+            if output_config["mode"] == constants.TPC_OUTPUT:
+                output_handler.set_output_limits(0, 100)
+            elif output_config["mode"] == constants.PWM_OUTPUT:
+                output_handler.set_output_limits(0, 100)
+        else:
+            raise Exception("Unknown output type '{}'".format(output_type))
+
+        # setup the gpio pin
+        RPIO.setup(output_config["pin"], RPIO.OUT, initial=RPIO.LOW)
+
         self.controller = output_handler
-        self.input = kwargs["input"]
-        self.mode = kwargs["mode"]
-        self.pin = kwargs["pin"]
-        self.active = kwargs["active"]
 
-    def signal_pin_for_ms(self, millis):
-        """
-        signal the gpio pin for a given time
-        """
-        # set the pin high
-        RPIO.output(self.pin, True)
+    def set_pin_high(self):
+        """set the gpio pin high"""
+        if RPIO.gpio_function(self.pin) == RPIO.OUT:
+            RPIO.output(self.pin, True)
 
-        # sleep
-        time.sleep(millis / 1000)
-
-        # set it back low
+    def set_pin_low(self):
+        """set the gpio pin low"""
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
             RPIO.output(self.pin, False)
 
-    def set_pin_for_ms(self, millis):
-        """
-        schedule a thread to signal the pin.
-        I think this needs refactoring to use a single thread for all
-        the signalling
-        """
-        thread = Thread(target=self.signal_pin_for_ms, args=[millis])
-        thread.start()
-
-    def calculate(self, input_object, input_value, period_ms):
+    def calculate(self, input_object, input_value, period_ms, loop_manager):
         """
         calculate and set output pin if required
         """
@@ -107,8 +136,13 @@ class Output(object):
             return  # nothing to do with this controller
 
         if self.mode == constants.TPC_OUTPUT:
-            self.set_pin_for_ms(
-                self.controller.output / 100 * period_ms)
+            if self.controller.output != 0:
+                loop_manager.schedule_callback(self.set_pin_high, 0)
+
+            # special case 100%, don't set it back low
+            if self.controller.output != 100:
+                loop_manager.schedule_callback(
+                    self.set_pin_low, self.controller.output / 100 * period_ms)
         elif self.mode == constants.PWM_OUTPUT:
             # not yet implemented, tpc is probably adequate
             pass
@@ -137,7 +171,7 @@ class ConfigFileWatcher(FileSystemEventHandler):
         self.controller = controller
 
     def on_any_event(self, event):
-        self.controller.on_config_file_event()
+        self.controller.on_config_file_event(event)
 
 
 class Controller(object):
@@ -148,17 +182,24 @@ class Controller(object):
 
     def __init__(self):
         self.controller_config = {}
-        self.controller_config["app_params_current"] = False
+        self.controller_config["config_current"] = False
+        self.controller_config["programs_current"] = False
         self.controller_config["config_file_observer"] = None
 
+        self.sample_ms = None
         self.inputs = {}
         self.outputs = {}
         self.logs = []
         self.programs = {}
+        self.loop_manager = None
 
-    def on_config_file_event(self):
-        """called when a chnage occurs to any of the config files"""
-        self.controller_config["app_params_current"] = False
+    def on_config_file_event(self, event):
+        """called when a change occurs to any of the config files"""
+        if isinstance(event, FileModifiedEvent):
+            if "programs.js" in event.src_path:
+                self.controller_config["programs_current"] = False
+            else:
+                self.controller_config["config_current"] = False
 
     def connect_logs(self):
         """read the log config and create associated log objects"""
@@ -190,27 +231,12 @@ class Controller(object):
             if input_config["active"] != True:
                 continue
 
-            input_handler = None
-            input_type = input_config["type"]
-            if input_type == constants.THERMISTOR_INPUT_TYPE:
-                input_handler = TempSensors.ThermistorSensor(
-                    input_config["adc_channel"])
-            elif input_type == constants.ONEWIRE_TEMP_INPUT_TYPE:
-                input_handler = TempSensors.OneWireTempSensor(
-                    input_config["address"])
-            elif input_type == constants.TMP36_TEMP_INPUT_TYPE:
-                input_handler = TempSensors.TMP36TempSensor(
-                    input_config["adc_channel"])
-            else:
-                raise Exception("Unknown input type '{}'".format(input_type))
-
             adjustment = None
             if "adjustment" in input_config:
                 adjustment = input_config["adjustment"]
 
-            io_input = Input(
-                input_config["name"], input_handler, input_handler.units(),
-                adjustment)
+            io_input = Input(input_config["name"], adjustment)
+            io_input.set_type(input_config["type"], input_config)
 
             input_dict[input_config["name"]] = io_input
 
@@ -226,29 +252,9 @@ class Controller(object):
             if output_config["active"] != True:
                 continue
 
-            log("output: {}".format(output_config["name"]))
-            output_handler = None
-            output_type = output_config["type"]
-            output_type_controller = output_type["controller"]
-            if output_type_controller == constants.PID_OUTPUT_CONTROLLER_TYPE:
-                output_handler = PID.PidController(
-                    sample_time_ms=self.controller_config[
-                        "control_sample_time_ms"],
-                    **output_type["config"])
-
-                if output_config["mode"] == constants.TPC_OUTPUT:
-                    output_handler.set_output_limits(0, 100)
-                elif output_config["mode"] == constants.PWM_OUTPUT:
-                    output_handler.set_output_limits(0, 100)
-            else:
-                raise Exception("Unknown output type '{}'".format(output_type))
-
-            # setup the gpio pin
-            RPIO.setup(output_config["pin"], RPIO.OUT, initial=RPIO.LOW)
-
-            # I think ** makes sense here and simplifies the code a lot.
-            # pylint: disable=W0142
-            io_output = Output(output_handler, **output_config)
+            io_output = Output(output_config)
+            io_output.set_type(
+                output_config["type"], output_config, self.sample_ms)
 
             output_dict[output_config["name"]] = io_output
 
@@ -260,13 +266,26 @@ class Controller(object):
         """
         program_dict = {}
 
+        for program_config in self.controller_config["programs"]:
+            if program_config["active"] != True:
+                continue
+
+            prog = program.Program()
+
+            program_dict[program_config["name"]] = prog
+
         return program_dict
 
-    def read_app_params(self):
+    def read_controller_config(self):
+        # load the controller config
+        self.controller_config.update(fileio.load_config_from_json_file(
+            "config/controller.json"))
+
+    def read_app_config(self):
         """
         load and read all the app configuration
         """
-        if self.controller_config["app_params_current"] == True:
+        if self.controller_config["config_current"] == True:
             return False
 
         config_file_observer = self.controller_config["config_file_observer"]
@@ -276,9 +295,7 @@ class Controller(object):
         config_file_observer = Observer()
         file_change_handler = ConfigFileWatcher(self)
 
-        # load the controller config
-        self.controller_config.update(fileio.load_config_from_json_file(
-            "config/controller.json"))
+        self.read_controller_config()
 
         # load the inputs config
         self.controller_config["inputs"] = fileio.load_config_from_json_file(
@@ -292,31 +309,43 @@ class Controller(object):
         self.controller_config["logs"] = fileio.load_config_from_json_file(
             "config/logs.json")
 
-        # load programs
-        self.controller_config["programs"] = fileio.load_config_from_json_file(
-            "config/programs.json")
-
         config_file_observer.schedule(
             file_change_handler, "config", recursive=False)
         config_file_observer.start()
 
         self.controller_config["config_file_observer"] = config_file_observer
         self.controller_config["file_change_handler"] = file_change_handler
-        self.controller_config["app_params_current"] = True
+        self.controller_config["config_current"] = True
 
         return True
 
+    def load_program_config(self):
+        """loads the configuration for programs to run"""
+        if self.programs != None and self.controller_config["programs_current"]:
+            return
+
+        self.controller_config["programs"] = fileio.load_config_from_json_file(
+            "config/programs.json")
+
+        self.programs = self.connect_programs()
+
     def evaluate_programs(self):
         """
-        reload config and build objects if needed
+        run any program logic that is needed
         """
+        self.load_program_config()
+
+        for prog in self.programs:
+            changed = prog.run()
+
+            if changed:
+                self.controller_config["config_current"] = False
 
     def load_config_if_needed(self):
         """
         reload config and build objects if needed
         """
-        if self.read_app_params():
-
+        if self.read_app_config():
             self.inputs = self.connect_inputs()
             self.outputs = self.connect_outputs()
             self.logs = self.connect_logs()
@@ -325,17 +354,25 @@ class Controller(object):
         """
         main control loop method for the controller class
         """
-        # do any onetime setup
-
         try:
+            # do onetime setup, start by loading config
+            self.read_controller_config()
+
+            # set the sample_ms
+            self.sample_ms = self.controller_config[
+                "restart_required_config"]["control_sample_time_ms"]
+
+            self.loop_manager = LoopManager(self.sample_ms)
+            self.loop_manager.start()
+
             while True:
+                self.loop_manager.begin_loop()
+
                 # evaluate any active programs
                 self.evaluate_programs()
 
                 # reload app config if neede
                 self.load_config_if_needed()
-
-                sample_ms = self.controller_config["control_sample_time_ms"]
 
                 # process the inputs
                 input_objects = self.inputs.values()
@@ -357,7 +394,8 @@ class Controller(object):
 
                         output_state = output.calculate(input_for_output,
                                                         input_value,
-                                                        sample_ms)
+                                                        self.sample_ms,
+                                                        self.loop_manager)
 
                         for logger in self.logs:
                             logger.log_output(output.name, output_state)
@@ -365,12 +403,97 @@ class Controller(object):
                 if loop_callback != None:
                     loop_callback()
 
-                # TODO: keep track of how long the above takes and subtract that
-                # from the sleep time
-                time.sleep(sample_ms / 1000.0)
+                self.loop_manager.next_iteration().wait()
         finally:
             RPIO.cleanup()
 
-            self.controller_config["app_params_current"] = False
+            self.controller_config["config_current"] = False
             if self.controller_config["config_file_observer"]:
                 self.controller_config["config_file_observer"].stop()
+
+
+class LoopManager(Thread):
+
+    """LoopManager manages when and how the controller loops"""
+
+    def __init__(self, milliseconds):
+        super(LoopManager, self).__init__()
+        self.event = Event()
+        self.milliseconds = milliseconds
+        self.daemon = True
+        self.begin_ms = millis()
+        self.callbacks = []
+        self.callback_lock = Lock()
+
+    def run(self):
+        self.event.clear()
+
+        last_ms = millis()
+        while True:
+            now_ms = millis()
+            if now_ms - last_ms > self.milliseconds:
+                self.signal_loop()
+                last_ms = now_ms
+
+            self.execute_callbacks(now_ms)
+
+            time.sleep(0.01)
+
+    def execute_callbacks(self, now_ms):
+        """
+        executes any scheduled callbacks
+        """
+        self.callback_lock.acquire()
+        callbacks_clone = self.callbacks[:]
+        self.callback_lock.release()
+
+        executed_callbacks = []
+        for callback in callbacks_clone:
+            if callback['ms'] == 0:
+                # execute immediately
+                callback['callback']()
+                executed_callbacks.append(callback)
+            else:
+                start_ms = callback['start']
+                if now_ms - start_ms > callback['ms']:
+                    callback['callback']()
+                    executed_callbacks.append(callback)
+
+        self.callback_lock.acquire()
+        for callback in executed_callbacks:
+            self.callbacks.remove(callback)
+
+        self.callback_lock.release()
+
+    def schedule_callback(self, callback, milliseconds):
+        """
+        schedule a callback to be called after a given amount of time.
+        callback will run on loop manager's thread
+        """
+        self.callback_lock.acquire()
+        self.callbacks.append({
+            'start': millis(),
+            'ms': milliseconds,
+            'callback': callback
+        })
+        self.callback_lock.release()
+
+    def signal_loop(self):
+        """signal the event"""
+        self.event.set()
+
+    def begin_loop(self):
+        """a loop is beginning from the controller"""
+        now_ms = millis()
+        if now_ms - self.begin_ms > self.milliseconds * 1.01:
+            print "Control loop logic took longer than config interval."
+
+        self.begin_ms = now_ms
+        self.event.clear()
+
+    def next_iteration(self):
+        """
+        returns event for the control loop to wait on
+        will probably do more stuff/logging here eventually
+        """
+        return self.event

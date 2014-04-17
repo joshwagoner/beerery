@@ -19,9 +19,9 @@ class Runner(object):
     Test runner for running controller on non-raspberry pi machine
     """
 
-    @patch('beerery.sensors.TempSensors.ThermistorSensor', autospec=True)
-    @patch('beerery.sensors.TempSensors.OneWireTempSensor', autospec=True)
-    @patch('beerery.sensors.TempSensors.TMP36TempSensor', autospec=True)
+    @patch('beerery.sensors.tempsensors.ThermistorSensor', autospec=True)
+    @patch('beerery.sensors.tempsensors.OneWireTempSensor', autospec=True)
+    @patch('beerery.sensors.tempsensors.TMP36TempSensor', autospec=True)
     def run(self, mock_tmp, mock_onewire, mock_thermistor):
         therm = mock_thermistor.return_value
         therm.get_temp.return_value = 55.25
@@ -36,9 +36,9 @@ class Runner(object):
         tmp.units.return_value = "f"
 
         ctrl = Controller()
-        ctrl.control(self.onEachControlLoop)
+        ctrl.control(self.on_each_control_loop)
 
-    def onEachControlLoop(self):
+    def on_each_control_loop(self):
         pass
 
 r = Runner()

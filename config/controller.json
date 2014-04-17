@@ -1,4 +1,6 @@
 {
-	"control_sample_time_ms": 1000,
-	"logging_enabled": false
+	"logging_enabled": false,
+	"restart_required_config": {
+		"control_sample_time_ms": 2000
+	}
 }

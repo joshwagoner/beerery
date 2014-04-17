@@ -5,7 +5,7 @@
   "type": {
     "controller": "PID",
     "config": {
-      "set_point": 148,
+      "set_point": 150,
       "mode": 1,
       "kp": 10,
       "ki": 1,
