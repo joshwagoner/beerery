@@ -1,38 +1,39 @@
 [{
-  "pin": 18,
-  "active": true,
   "name": "HLT",
-  "type": {
-    "controller": "PID",
-    "config": {
-      "set_point": 150,
-      "mode": 1,
-      "kp": 10,
-      "ki": 1,
-      "kd": 5
-    }
-  },
+  "pin": 18,
+  "mode": "TPC",
+  "active": true,
   "input": "HLT",
-  "mode": "TPC"
-}, {
-  "pin": 8,
-  "active": false,
-  "name": "BK",
   "type": {
     "controller": "PID",
     "config": {
-      "set_point": 70,
-      "mode": 1,
-      "kp": 10,
+      "kd": 5,
       "ki": 1,
+      "kp": 10,
+      "mode": 0,
+      "output": 100,
+      "set_point": 148
+    }
+  }
+}, {
+  "name": "BK",
+  "pin": 8,
+  "mode": "TPC",
+  "active": false,
+  "input": "BK",
+  "type": {
+    "controller": "PID",
+    "config": {
+      "mode": 1,
+      "ki": 1,
+      "kp": 10,
+      "set_point": 70,
       "kd": 5
     }
-  },
-  "input": "BK",
-  "mode": "TPC"
+  }
 }, {
-  "pin": 25,
   "active": false,
+  "type": "manual",
   "name": "alarm",
-  "type": "manual"
+  "pin": 25
 }]

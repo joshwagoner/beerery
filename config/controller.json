@@ -1,5 +1,6 @@
 {
 	"logging_enabled": false,
+	"alarm_output_name": "alarm",
 	"restart_required_config": {
 		"control_sample_time_ms": 2000
 	}

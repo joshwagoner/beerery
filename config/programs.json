@@ -1,43 +1,78 @@
 [{
-	"name": "normal_brew",
+	"name": "standard_brew",
 	"description": "Standard Brewing Program",
 	"comment": "really rough outline of future 'program' support for automating changes to config",
-	"active": false,
+	"active": true,
 	"steps": [{
 		"name": "prepare_hlt",
 		"description": "Bring the HLT water to close to strike temp",
 		"actions": [{
-			"description": "100% heat to 145"
+			"description": "100% heat to 145",
+			"type": "PID",
+			"output_name": "HLT",
+			"output": 100,
+			"setpoint": 145
+		}, {
+			"action": "alarm"
 		}, {
 			"description": "PID to 150",
+			"type": "PID",
+			"output_name": "HLT",
+			"output": "PID",
+			"setpoint": 150,
 			"end": "hold"
 		}, {
 			"action": "alarm,wait"
 		}]
 	}, {
 		"name": "mash",
-		"description": "Bring the HLT water to close to strike temp",
+		"description": "Mash for 60 minutes",
 		"actions": [{
 			"description": "Mash - PID at 150",
+			"type": "PID",
+			"output_name": "HLT",
+			"output": "PID",
+			"setpoint": 150,
 			"duration": 60
 		}, {
 			"description": "Mash out - PID to 165",
+			"type": "PID",
+			"output_name": "HLT",
+			"output": "PID",
+			"setpoint": 150,
 			"end": "hold"
 		}, {
 			"action": "alarm,wait"
+		}, {
+			"description": "Turn off HLT",
+			"type": "PID",
+			"output_name": "HLT",
+			"output": 0,
+			"end": "off"
 		}]
 	}, {
 		"name": "boil",
 		"description": "Boil",
 		"actions": [{
-			"description": "100% heat to 208"
+			"description": "100% heat to 205",
+			"type": "PID",
+			"output_name": "BK",
+			"output": 100,
+			"setpoint": 205
 		}, {
-			"description": "PID at 210",
+			"description": "PID at 208",
+			"type": "PID",
+			"output_name": "BK",
+			"output": "PID",
+			"setpoint": 208,
 			"end": "hold"
 		}, {
 			"action": "alarm,wait"
 		}, {
 			"description": "75% heat for boil",
+			"type": "PID",
+			"output_name": "BK",
+			"output": 75,
 			"duration": 60,
 			"end": "off"
 		}, {

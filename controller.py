@@ -270,13 +270,16 @@ class Controller(object):
             if program_config["active"] != True:
                 continue
 
-            prog = program.Program()
+            prog = program.Program(program_config)
 
             program_dict[program_config["name"]] = prog
 
         return program_dict
 
     def read_controller_config(self):
+        """
+        read the controller level config file
+        """
         # load the controller config
         self.controller_config.update(fileio.load_config_from_json_file(
             "config/controller.json"))
@@ -335,7 +338,7 @@ class Controller(object):
         """
         self.load_program_config()
 
-        for prog in self.programs:
+        for prog in self.programs.values():
             changed = prog.run()
 
             if changed:
