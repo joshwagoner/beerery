@@ -115,6 +115,17 @@ class ProgramAction(object):
         return self.output_dict
 
 
+class BasicAction(ProgramAction):
+
+    """
+    Program action for basic actions like 'alarm', 'wait', etc.
+    """
+
+    def __init__(self, program, action_config):
+        super(BasicAction, self).__init__(program, action_config)
+        self.config_changed = False
+
+
 class PIDAction(ProgramAction):
 
     """
@@ -123,8 +134,9 @@ class PIDAction(ProgramAction):
 
     def __init__(self, program, action_config):
         super(PIDAction, self).__init__(program, action_config)
-        self.output = action_config.get("output", None)
-        self.setpoint = action_config.get("setpoint", None)
+        self.output = action_config.get("output")
+        self.setpoint = action_config.get("setpoint")
+        self.config_changed = False
 
     def validate_config(self, set_active):
         """
@@ -154,24 +166,27 @@ class PIDAction(ProgramAction):
             raise Exception(err_msg.format(self.output_name,
                                            self.program.name))
 
-        output["active"] = set_active
+        if output["active"] != set_active:
+            output["active"] = set_active
+            self.config_changed = True
 
         return type_config
 
     def apply(self):
+        self.config_changed = False
+
         config = self.validate_config(True)
 
-        needs_save = False
         if self.output == "PID":
             if config["mode"] != 1 or config["set_point"] != self.setpoint:
-                needs_save = True
+                self.config_changed = True
                 config["mode"] = 1
                 config["set_point"] = self.setpoint
         else:
             if config["mode"] != 0 or config["output"] != self.output:
-                needs_save = True
+                self.config_changed = True
                 config["mode"] = 0
                 config["output"] = self.output
 
-        if needs_save:
+        if self.config_changed:
             fileio.save_output_config(self.output_config)

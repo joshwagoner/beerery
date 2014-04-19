@@ -10,7 +10,8 @@ import beerery.constants as constants
 import beerery.fileio as fileio
 import beerery.program as program
 from pprint import pprint
-from threading import Thread, Event, Lock
+import threading
+import Queue
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 import RPIO  # only available on the raspberry pi, pylint: disable=F0401
@@ -59,7 +60,7 @@ class Input(object):
 
         self.input_impl = input_handler
 
-    def calculate(self):
+    def calculate(self, callback=None):
         """
         retrieve sensor value
         """
@@ -79,7 +80,15 @@ class Input(object):
 
         fileio.log_input_state(self.name, input_state)
 
+        if callback:
+            callback(self, input_state)
+
         return input_state
+
+    def calculate_async(self, complete):
+        """calculate the input sensor value asynchronously"""
+        thread = threading.Thread(target=self.calculate, args=[complete])
+        thread.start()
 
 
 class Output(object):
@@ -380,11 +389,11 @@ class Controller(object):
                 # process the inputs
                 input_objects = self.inputs.values()
 
-                for input_object in input_objects:
-                    input_state = input_object.calculate()
+                input_calculator = ParallelInputCalculator(
+                    input_objects, self.logs)
 
-                    for logger in self.logs:
-                        logger.log_input(input_object.name, input_state)
+                input_calculator.calculate_async()
+                input_calculator.wait()
 
                 # process outputs
                 output_objects = self.outputs.values()
@@ -415,18 +424,55 @@ class Controller(object):
                 self.controller_config["config_file_observer"].stop()
 
 
-class LoopManager(Thread):
+class ParallelInputCalculator(object):
+
+    """
+    helper class to run async calculations of the inputs.
+    some inputs take up to 1sec to return so running all
+    of them in parallel to calculate them as quickly as possible
+    """
+
+    def __init__(self, inputs, logs):
+        self.inputs = inputs
+        self.event = threading.Event()
+        self.logs = logs
+        self.input_count = len(inputs)
+        self.inputs_calculated = 0
+
+    def calculate_async(self):
+        """fire off async calc of all the inputs"""
+        self.event.clear()
+
+        for input_object in self.inputs:
+            input_object.calculate_async(self.on_input_calculated)
+
+    def on_input_calculated(self, input_object, input_state):
+        """callback when an input is done calculating"""
+        for logger in self.logs:
+            logger.log_input(input_object.name, input_state)
+
+        self.inputs_calculated += 1
+
+        if self.inputs_calculated == self.input_count:
+            self.event.set()
+
+    def wait(self):
+        """wait for all inputs to calculate"""
+        self.event.wait()
+
+
+class LoopManager(threading.Thread):
 
     """LoopManager manages when and how the controller loops"""
 
     def __init__(self, milliseconds):
         super(LoopManager, self).__init__()
-        self.event = Event()
+        self.event = threading.Event()
         self.milliseconds = milliseconds
         self.daemon = True
         self.begin_ms = millis()
         self.callbacks = []
-        self.callback_lock = Lock()
+        self.callback_lock = threading.Lock()
 
     def run(self):
         self.event.clear()

@@ -102,6 +102,7 @@ class OneWireTempSensor(TempSensor):
         self.device_file = self.device_folder + '/w1_slave'
 
     def read_temp_file(self):
+        """read the virtual file that exposes the sensor value"""
         file_obj = open(self.device_file, 'r')
         lines = file_obj.readlines()
         file_obj.close()
@@ -117,3 +118,13 @@ class OneWireTempSensor(TempSensor):
             temp_c = float(temp_string) / 1000.0
             temp_f = temp_c * 9.0 / 5.0 + 32.0
             return temp_f
+
+    def timed_get_temp(self):
+        """time how long it takes to get the temp"""
+        time0 = time.time()
+        temp = self.get_temp()
+        time1 = time.time()
+
+        print time1 - time0
+
+        return temp

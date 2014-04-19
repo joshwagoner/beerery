@@ -9,7 +9,7 @@ sys.modules['RPIO'] = RPIO_MOCK
 sys.modules['spidev'] = mock.Mock()
 
 os.system = mock.Mock()
-# test onewire address: 28-000004f71e70
+# test onewire address: 28-000004f65c4d
 from beerery.controller import Controller
 
 

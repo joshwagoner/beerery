@@ -1,6 +1,6 @@
 [{
   "type": "thermistor",
-  "active": false,
+  "active": true,
   "adc_channel": 0,
   "name": "MLT",
   "coefficients": {
@@ -16,7 +16,7 @@
   "name": "HLT"
 }, {
   "type": "TMP36",
-  "active": false,
+  "active": true,
   "adc_channel": 2,
   "adjustment": -2,
   "name": "BK"
