@@ -11,7 +11,6 @@ import beerery.fileio as fileio
 import beerery.program as program
 from pprint import pprint
 import threading
-import Queue
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent
 import RPIO  # only available on the raspberry pi, pylint: disable=F0401
@@ -124,6 +123,11 @@ class Output(object):
 
         self.controller = output_handler
 
+    def update_with_config(self, config):
+        """update with new config"""
+        # not yet merging in the updates
+        pass
+
     def set_pin_high(self):
         """set the gpio pin high"""
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
@@ -198,8 +202,8 @@ class Controller(object):
         self.sample_ms = None
         self.inputs = {}
         self.outputs = {}
-        self.logs = []
         self.programs = {}
+        self.logs = []
         self.loop_manager = None
 
     def on_config_file_event(self, event):
@@ -210,9 +214,9 @@ class Controller(object):
             else:
                 self.controller_config["config_current"] = False
 
-    def connect_logs(self):
+    def connect_logs(self, logs):
         """read the log config and create associated log objects"""
-        logs = []
+        del logs[:]
 
         if not self.controller_config["logging_enabled"]:
             return logs
@@ -228,13 +232,11 @@ class Controller(object):
 
             logs.append(logger)
 
-        return logs
-
-    def connect_inputs(self):
+    def connect_inputs(self, input_dict):
         """
         read the input config and create associated input reading objects
         """
-        input_dict = {}
+        input_dict.clear()
 
         for input_config in self.controller_config["inputs"]:
             if input_config["active"] != True:
@@ -249,25 +251,48 @@ class Controller(object):
 
             input_dict[input_config["name"]] = io_input
 
-        return input_dict
-
-    def connect_outputs(self):
+    def connect_outputs(self, output_dict):
         """
-        read the output config and create associated output pin control objects
+        read the output config and create/update associated
+        output pin control objects
         """
-        output_dict = {}
+        # get the active outputs
+        new_output_configs = [
+            o for o in self.controller_config["outputs"] if o["active"]]
 
-        for output_config in self.controller_config["outputs"]:
-            if output_config["active"] != True:
-                continue
+        current_output_objects = output_dict.values()
 
+        new_output_names = [o["name"] for o in new_output_configs]
+        to_remove = [
+            o for o in current_output_objects if o.name not in new_output_names]
+
+        # remove outputs that are no longer config'd
+        for output in to_remove:
+            log("removing: {}".format(output.name))
+            del output_dict[output.name]
+
+        # determine which config'd outputs already have an object
+        existing_names = [o.name for o in current_output_objects]
+        existing_configs = [
+            c for c in new_output_configs if c["name"] in existing_names]
+
+        # update existing outputs
+        for existing_config in existing_configs:
+            log("updateing output: {}".format(existing_config["name"]))
+            existing_output = output_dict[existing_config["name"]]
+            existing_output.update_with_config(existing_config)
+
+            # remove from the new_output_configs list
+            new_output_configs.remove(existing_config)
+
+        # create new outputs
+        for output_config in new_output_configs:
+            log("creating output: {}".format(output_config["name"]))
             io_output = Output(output_config)
             io_output.set_type(
                 output_config["type"], output_config, self.sample_ms)
 
             output_dict[output_config["name"]] = io_output
-
-        return output_dict
 
     def connect_programs(self):
         """
@@ -358,9 +383,9 @@ class Controller(object):
         reload config and build objects if needed
         """
         if self.read_app_config():
-            self.inputs = self.connect_inputs()
-            self.outputs = self.connect_outputs()
-            self.logs = self.connect_logs()
+            self.connect_inputs(self.inputs)
+            self.connect_outputs(self.outputs)
+            self.connect_logs(self.logs)
 
     def control(self, loop_callback=None):
         """
@@ -435,6 +460,7 @@ class ParallelInputCalculator(object):
     def __init__(self, inputs, logs):
         self.inputs = inputs
         self.event = threading.Event()
+        self.count_lock = threading.Lock()
         self.logs = logs
         self.input_count = len(inputs)
         self.inputs_calculated = 0
@@ -451,10 +477,13 @@ class ParallelInputCalculator(object):
         for logger in self.logs:
             logger.log_input(input_object.name, input_state)
 
+        self.count_lock.acquire()
         self.inputs_calculated += 1
 
         if self.inputs_calculated == self.input_count:
             self.event.set()
+
+        self.count_lock.release()
 
     def wait(self):
         """wait for all inputs to calculate"""
