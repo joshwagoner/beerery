@@ -45,6 +45,8 @@ class PidController(object):
         self.mode = kwargs["mode"]
         self.input = 0
         self.output = 0
+        self.full_cycle_threshold = kwargs.get(
+            'full_cycle_threshold', float('inf'))
 
         if self.mode == PidController.AUTO_MODE:
             self.set_params(kwargs["kp"], kwargs["ki"], kwargs["kd"])
@@ -92,14 +94,20 @@ class PidController(object):
             # just return, output should already be set in manual
             return True
 
+        # calc error
+        error = self.set_point - self.input
+
+        if error > self.full_cycle_threshold:
+            # if the error is greater than the full_cycle_threshold,
+            # just full cycle
+            self.output = self.max_out
+            return True
+
         # calculate time since last compute
         now = millis()
         time_change = now - self.last_time
 
         if time_change >= self.sample_time_ms:
-            # calc error
-            error = self.set_point - self.input
-
             # add to running error total
             self.i_term += (self.ki * error)
             # clamp to min/max
@@ -113,7 +121,9 @@ class PidController(object):
             self.last_time = now
 
             self.output = clamp(
-                self.kp * error + self.i_term - self.kd * d_input, self.min_out, self.max_out)
+                self.kp * error + self.i_term -
+                self.kd * d_input, self.min_out,
+                self.max_out)
 
             return True
         else:

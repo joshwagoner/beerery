@@ -1,6 +1,6 @@
 [{
   "type": "thermistor",
-  "active": true,
+  "active": false,
   "adc_channel": 0,
   "name": "MLT",
   "coefficients": {
@@ -13,10 +13,15 @@
   "type": "DS18B20",
   "active": true,
   "address": "28-000004f65c4d",
+  "name": "MLT"
+}, {
+  "type": "DS18B20",
+  "active": true,
+  "address": "28-000004f68c0f",
   "name": "HLT"
 }, {
   "type": "TMP36",
-  "active": true,
+  "active": false,
   "adc_channel": 2,
   "adjustment": -2,
   "name": "BK"

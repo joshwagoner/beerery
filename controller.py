@@ -126,6 +126,7 @@ class Output(object):
     def update_with_config(self, config):
         """update with new config"""
         # not yet merging in the updates
+        # log(config)
         pass
 
     def set_pin_high(self):

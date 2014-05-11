@@ -1,3 +1,6 @@
+"""
+mocked controller for running without real inputs and outputs
+"""
 import mock
 from mock import patch
 import sys
@@ -35,7 +38,7 @@ class Runner(object):
         self.thermistor.units.return_value = "f"
 
         self.onewire = mock_onewire.return_value
-        self.onewire.get_temp.return_value = 70.25
+        self.onewire.get_temp.return_value = 152
         self.onewire.units.return_value = "f"
 
         self.tmp = mock_tmp.return_value
@@ -48,7 +51,8 @@ class Runner(object):
     def on_each_control_loop(self):
         """ code to run on each control loop"""
         self.thermistor.get_temp.return_value += random.uniform(-2.0, 2.0)
-        self.onewire.get_temp.return_value += random.uniform(-2.0, 2.0)
+        self.onewire.get_temp.return_value += random.uniform(
+            0.1, 0.5)  # random.uniform(-2.0, 2.0)
         self.tmp.get_temp.return_value += random.uniform(-2.0, 2.0)
 
 r = Runner()
