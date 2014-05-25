@@ -481,8 +481,11 @@ class ParallelInputCalculator(object):
         """fire off async calc of all the inputs"""
         self.event.clear()
 
-        for input_object in self.inputs:
-            input_object.calculate_async(self.on_input_calculated)
+        if self.input_count > 0:
+            for input_object in self.inputs:
+                input_object.calculate_async(self.on_input_calculated)
+        else:
+            self.event.set()
 
     def on_input_calculated(self, input_object, input_state):
         """callback when an input is done calculating"""
