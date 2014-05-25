@@ -99,7 +99,7 @@ class Output(object):
     def __init__(self, output_config):
         self.name = output_config["name"]
         self.controller = None
-        self.input = output_config["input"]
+        self.input = output_config.get("input", None)
         self.mode = output_config["mode"]
         self.pin = output_config["pin"]
         self.debug_millis = 0
@@ -173,7 +173,7 @@ class Output(object):
             "mode": self.mode,
             "output_value": self.controller.output,
             "input_value": self.controller.input,
-            "input_name": input_object.name,
+            "input_name": input_object.name if input_object != None else None,
             "date_servertime": datetime.now().strftime(constants.DATE_FORMAT),
             "date_utc": datetime.utcnow().strftime(constants.DATE_FORMAT)
         }
@@ -431,7 +431,7 @@ class Controller(object):
                 output_objects = self.outputs.values()
 
                 for output in output_objects:
-                    input_for_output = self.inputs[output.input]
+                    input_for_output = self.inputs.get(output.input, None)
 
                     if input_for_output != None:
                         input_value = input_for_output.last_value
@@ -440,9 +440,14 @@ class Controller(object):
                                                         input_value,
                                                         self.sample_ms,
                                                         self.loop_manager)
+                    else:
+                        output_state = output.calculate(None,
+                                                        None,
+                                                        self.sample_ms,
+                                                        self.loop_manager)
 
-                        for logger in self.logs:
-                            logger.log_output(output.name, output_state)
+                    for logger in self.logs:
+                        logger.log_output(output.name, output_state)
 
                 if loop_callback != None:
                     loop_callback()
