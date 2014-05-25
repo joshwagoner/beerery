@@ -10,8 +10,8 @@
       "kd": 5,
       "ki": 1,
       "kp": 20,
-      "mode": 1,
-      "output": 100,
+      "mode": 0,
+      "output": 80,
       "set_point": 155,
       "full_cycle_threshold": 0.75
     }

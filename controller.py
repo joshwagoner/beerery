@@ -102,6 +102,7 @@ class Output(object):
         self.input = output_config["input"]
         self.mode = output_config["mode"]
         self.pin = output_config["pin"]
+        self.debug_millis = 0
 
     def set_type(self, output_type, output_config, sample_ms):
         """creates the controller object based on the config settings"""
@@ -131,11 +132,15 @@ class Output(object):
 
     def set_pin_high(self):
         """set the gpio pin high"""
+        self.debug_millis = millis()
+        log("set_pin_high: {}".format(self.debug_millis))
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
             RPIO.output(self.pin, True)
 
     def set_pin_low(self):
         """set the gpio pin low"""
+        mils = millis() - self.debug_millis
+        log("set_pin_low: {}".format(mils))
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
             RPIO.output(self.pin, False)
 
@@ -150,13 +155,14 @@ class Output(object):
             return  # nothing to do with this controller
 
         if self.mode == constants.TPC_OUTPUT:
+            log("self.controller.output: {}".format(self.controller.output))
             if self.controller.output != 0:
                 loop_manager.schedule_callback(self.set_pin_high, 0)
 
             # special case 100%, don't set it back low
             if self.controller.output != 100:
                 loop_manager.schedule_callback(
-                    self.set_pin_low, self.controller.output / 100 * period_ms)
+                    self.set_pin_low, self.controller.output / 100.0 * period_ms)
         elif self.mode == constants.PWM_OUTPUT:
             # not yet implemented, tpc is probably adequate
             pass
