@@ -133,7 +133,7 @@ class Output(object):
     def set_pin_high(self):
         """set the gpio pin high"""
         self.debug_millis = millis()
-        log("set_pin_high: {}".format(self.debug_millis))
+        # log("set_pin_high: {}".format(self.debug_millis))
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
             RPIO.output(self.pin, True)
 
@@ -155,7 +155,7 @@ class Output(object):
             return  # nothing to do with this controller
 
         if self.mode == constants.TPC_OUTPUT:
-            log("self.controller.output: {}".format(self.controller.output))
+            # log("self.controller.output: {}".format(self.controller.output))
             if self.controller.output != 0:
                 loop_manager.schedule_callback(self.set_pin_high, 0)
 
