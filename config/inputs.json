@@ -1,28 +1,28 @@
 [{
-  "type": "thermistor",
-  "active": false,
-  "adc_channel": 0,
-  "name": "MLT",
-  "coefficients": {
-    "a": 0.0011371549,
-    "b": 0.0002325949,
-    "c": 0,
-    "d": 9.54e-8
-  }
+	"type": "thermistor",
+	"active": false,
+	"adc_channel": 0,
+	"name": "MLT",
+	"coefficients": {
+		"a": 0.0011371549,
+		"b": 0.0002325949,
+		"c": 0,
+		"d": 0.0000000954
+	}
 }, {
-  "type": "DS18B20",
-  "active": true,
-  "address": "28-000004f65c4d",
-  "name": "MLT"
+	"type": "DS18B20",
+	"active": false,
+	"address": "28-000004f65c4d",
+	"name": "MLT"
 }, {
-  "type": "DS18B20",
-  "active": true,
-  "address": "28-000004f68c0f",
-  "name": "HLT"
+	"type": "DS18B20",
+	"active": false,
+	"address": "28-000004f68c0f",
+	"name": "HLT"
 }, {
-  "type": "TMP36",
-  "active": false,
-  "adc_channel": 2,
-  "adjustment": -2,
-  "name": "BK"
+	"type": "TMP36",
+	"active": false,
+	"adc_channel": 2,
+	"adjustment": -2,
+	"name": "BK"
 }]
