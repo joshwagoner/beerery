@@ -2,7 +2,7 @@
   "name": "HLT",
   "pin": 18,
   "mode": "TPC",
-  "active": false,
+  "active": true,
   "input": "HLT",
   "type": {
     "controller": "PID",
@@ -11,7 +11,7 @@
       "ki": 1,
       "kp": 20,
       "mode": 1,
-      "set_point": 172,
+      "set_point": 90,
       "full_cycle_threshold": 0.75
     }
   }
@@ -19,7 +19,7 @@
   "name": "BK",
   "pin": 22,
   "mode": "TPC",
-  "active": true,
+  "active": false,
   "input": "BK",
   "type": {
     "controller": "PID",

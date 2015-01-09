@@ -16,7 +16,7 @@
 	"name": "MLT"
 }, {
 	"type": "DS18B20",
-	"active": false,
+	"active": true,
 	"address": "28-000004f68c0f",
 	"name": "HLT"
 }, {

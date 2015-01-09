@@ -22,15 +22,15 @@ def clamp(value, min_val, max_val):
 
 
 class PidController(object):
-# pid implentation warrants several attributes
-# pylint: disable=R0902
+    # pid implentation warrants several attributes
+    # pylint: disable=R0902
     AUTO_MODE = 1
     MANUAL_MODE = 0
 
     # args: set_point, kp, ki, kd, sample_time_ms
     def __init__(self, **kwargs):
-    # kwargs should be: {'mode': 1, 'kd': 0.01, 'ki': 0.01, 'kp': 2,
-    # 'set_point': 160} or {'mode': 0, "output": 75}
+        # kwargs should be: {'mode': 1, 'kd': 0.01, 'ki': 0.01, 'kp': 2,
+        # 'set_point': 160} or {'mode': 0, "output": 75}
         self.last_time = 0  # last time the pid function was calculated
         self.i_term = 0  # intergral term
         self.last_input = 0  # last input reading value
@@ -53,6 +53,20 @@ class PidController(object):
         else:
             self.set_mode(PidController.MANUAL_MODE)
             self.output = kwargs["output"]
+
+    def update_config(self, config):
+        self.mode = config["mode"]
+        self.set_point = config["set_point"]
+
+        if self.mode == PidController.AUTO_MODE:
+            self.set_params(config["kp"], config["ki"], config["kd"])
+        else:
+            self.output = config["output"]
+
+        self.full_cycle_threshold = config.get(
+            'full_cycle_threshold', float('inf'))
+
+        self.set_mode(self.mode)
 
     def set_mode(self, mode):
         move_to_auto = self.mode == PidController.MANUAL_MODE and mode == PidController.AUTO_MODE
@@ -93,6 +107,10 @@ class PidController(object):
         if self.mode == PidController.MANUAL_MODE:
             # just return, output should already be set in manual
             return True
+
+        if self.input is None:
+            print "PID Auto mode requires an input value, not calculating."
+            return False
 
         # calc error
         error = self.set_point - self.input

@@ -63,6 +63,8 @@ class Input(object):
         """
         retrieve sensor value
         """
+        log("calculating {}".format(self.name))
+
         self.last_value = self.input_impl.get_temp()
 
         if self.adjustment:
@@ -73,8 +75,7 @@ class Input(object):
             "value": self.last_value,
             "units": self.input_impl.units(),
             "date_servertime": datetime.now().strftime(constants.DATE_FORMAT),
-            "date_utc": datetime.utcnow().strftime(
-            constants.DATE_FORMAT)
+            "date_utc": datetime.utcnow().strftime(constants.DATE_FORMAT)
         }
 
         fileio.log_input_state(self.name, input_state)
@@ -126,21 +127,25 @@ class Output(object):
 
     def update_with_config(self, config):
         """update with new config"""
-        # not yet merging in the updates
-        # log(config)
-        pass
+        log(config)
+        output_type = config["type"]
+        output_type_controller = output_type["controller"]
+        if output_type_controller == constants.PID_OUTPUT_CONTROLLER_TYPE:
+            self.controller.update_config(output_type["config"])
+        else:
+            raise Exception("Unknown output type '{}'".format(output_type))
 
     def set_pin_high(self):
         """set the gpio pin high"""
         self.debug_millis = millis()
-        # log("set_pin_high: {}".format(self.debug_millis))
+        log("set_pin_high: {}".format(self.name))
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
             RPIO.output(self.pin, True)
 
     def set_pin_low(self):
         """set the gpio pin low"""
         mils = millis() - self.debug_millis
-        log("set_pin_low: {}".format(mils))
+        log("set_pin_low: {}".format(self.name))
         if RPIO.gpio_function(self.pin) == RPIO.OUT:
             RPIO.output(self.pin, False)
 
@@ -214,6 +219,7 @@ class Controller(object):
         self.loop_manager = None
 
     def on_config_file_event(self, event):
+        log("config file event: {}".format(event))
         """called when a change occurs to any of the config files"""
         if isinstance(event, FileModifiedEvent):
             if "programs.js" in event.src_path:
@@ -285,7 +291,7 @@ class Controller(object):
 
         # update existing outputs
         for existing_config in existing_configs:
-            log("updateing output: {}".format(existing_config["name"]))
+            log("updating output: {}".format(existing_config["name"]))
             existing_output = output_dict[existing_config["name"]]
             existing_output.update_with_config(existing_config)
 
@@ -308,7 +314,7 @@ class Controller(object):
         program_dict = {}
 
         for program_config in self.controller_config["programs"]:
-            if program_config["active"] != True:
+            if program_config["active"] is not True:
                 continue
 
             prog = program.Program(program_config)
@@ -329,8 +335,11 @@ class Controller(object):
         """
         load and read all the app configuration
         """
-        if self.controller_config["config_current"] == True:
+        if self.controller_config["config_current"] is True:
+            log("config_current == true")
             return False
+
+        log("config_current == false")
 
         config_file_observer = self.controller_config["config_file_observer"]
         if config_file_observer:
@@ -360,6 +369,8 @@ class Controller(object):
         self.controller_config["config_file_observer"] = config_file_observer
         self.controller_config["file_change_handler"] = file_change_handler
         self.controller_config["config_current"] = True
+
+        log("end read_app_config")
 
         return True
 
@@ -480,6 +491,8 @@ class ParallelInputCalculator(object):
     def calculate_async(self):
         """fire off async calc of all the inputs"""
         self.event.clear()
+
+        log("input_count: {}".format(self.input_count))
 
         if self.input_count > 0:
             for input_object in self.inputs:
