@@ -2,7 +2,7 @@
 	"type": "thermistor",
 	"active": false,
 	"adc_channel": 0,
-	"name": "MLT",
+	"name": "MLTOLD",
 	"coefficients": {
 		"a": 0.0011371549,
 		"b": 0.0002325949,
@@ -11,7 +11,7 @@
 	}
 }, {
 	"type": "DS18B20",
-	"active": false,
+	"active": true,
 	"address": "28-000004f65c4d",
 	"name": "MLT"
 }, {

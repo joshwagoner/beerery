@@ -2,6 +2,7 @@
 module for control server processes
 """
 import time
+import os
 from datetime import datetime
 import beerery.sensors.tempsensors as tempsensors
 import beerery.loggers as loggers
@@ -205,7 +206,7 @@ class Controller(object):
     Controller class
     """
 
-    def __init__(self):
+    def __init__(self, config_base_directory=None):
         self.controller_config = {}
         self.controller_config["config_current"] = False
         self.controller_config["programs_current"] = False
@@ -217,6 +218,9 @@ class Controller(object):
         self.programs = {}
         self.logs = []
         self.loop_manager = None
+        self.cnfg_base_dir = config_base_directory or ""
+
+        fileio.set_base_directory(self.cnfg_base_dir)
 
     def on_config_file_event(self, event):
         log("config file event: {}".format(event))
@@ -363,7 +367,9 @@ class Controller(object):
             "config/logs.json")
 
         config_file_observer.schedule(
-            file_change_handler, "config", recursive=False)
+            file_change_handler, os.path.join(self.cnfg_base_dir, "config"),
+            recursive=False)
+
         config_file_observer.start()
 
         self.controller_config["config_file_observer"] = config_file_observer
