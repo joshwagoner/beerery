@@ -14,9 +14,11 @@ from pprint import pprint
 import threading
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileModifiedEvent
-import RPIO  # only available on the raspberry pi, pylint: disable=F0401
+import RPi.GPIO as GPIO
 
 DEV_LOGGING = True
+
+GPIO.setmode(GPIO.BOARD)
 
 
 def log(message):
@@ -64,7 +66,7 @@ class Input(object):
         """
         retrieve sensor value
         """
-        log("calculating {}".format(self.name))
+        # log("calculating {}".format(self.name))
 
         self.last_value = self.input_impl.get_temp()
 
@@ -122,7 +124,7 @@ class Output(object):
             raise Exception("Unknown output type '{}'".format(output_type))
 
         # setup the gpio pin
-        RPIO.setup(output_config["pin"], RPIO.OUT, initial=RPIO.LOW)
+        GPIO.setup(output_config["pin"], GPIO.OUT, initial=GPIO.LOW)
 
         self.controller = output_handler
 
@@ -139,16 +141,16 @@ class Output(object):
     def set_pin_high(self):
         """set the gpio pin high"""
         self.debug_millis = millis()
-        log("set_pin_high: {}".format(self.name))
-        if RPIO.gpio_function(self.pin) == RPIO.OUT:
-            RPIO.output(self.pin, True)
+        log("set_pin_high: {}, {}".format(self.name, self.pin))
+        if GPIO.gpio_function(self.pin) == GPIO.OUT:
+            GPIO.output(self.pin, GPIO.HIGH)
 
     def set_pin_low(self):
         """set the gpio pin low"""
         mils = millis() - self.debug_millis
         log("set_pin_low: {}".format(self.name))
-        if RPIO.gpio_function(self.pin) == RPIO.OUT:
-            RPIO.output(self.pin, False)
+        if GPIO.gpio_function(self.pin) == GPIO.OUT:
+            GPIO.output(self.pin, GPIO.LOW)
 
     def calculate(self, input_object, input_value, period_ms, loop_manager):
         """
@@ -163,12 +165,13 @@ class Output(object):
         if self.mode == constants.TPC_OUTPUT:
             # log("self.controller.output: {}".format(self.controller.output))
             if self.controller.output != 0:
-                loop_manager.schedule_callback(self.set_pin_high, 0)
+                loop_manager.schedule_callback_new(
+                    self.name, self.set_pin_high, 0)
 
             # special case 100%, don't set it back low
             if self.controller.output != 100:
-                loop_manager.schedule_callback(
-                    self.set_pin_low, self.controller.output / 100.0 * period_ms)
+                loop_manager.schedule_callback_new(self.name,
+                                                   self.set_pin_low, float(self.controller.output) / 100.0)
         elif self.mode == constants.PWM_OUTPUT:
             # not yet implemented, tpc is probably adequate
             pass
@@ -340,7 +343,7 @@ class Controller(object):
         load and read all the app configuration
         """
         if self.controller_config["config_current"] is True:
-            log("config_current == true")
+            # log("config_current == true")
             return False
 
         log("config_current == false")
@@ -471,7 +474,7 @@ class Controller(object):
 
                 self.loop_manager.next_iteration().wait()
         finally:
-            RPIO.cleanup()
+            GPIO.cleanup()
 
             self.controller_config["config_current"] = False
             if self.controller_config["config_file_observer"]:
@@ -498,7 +501,7 @@ class ParallelInputCalculator(object):
         """fire off async calc of all the inputs"""
         self.event.clear()
 
-        log("input_count: {}".format(self.input_count))
+        # log("input_count: {}".format(self.input_count))
 
         if self.input_count > 0:
             for input_object in self.inputs:
@@ -532,10 +535,20 @@ class LoopManager(threading.Thread):
         super(LoopManager, self).__init__()
         self.event = threading.Event()
         self.milliseconds = milliseconds
+        self.control_loop_duraton_ms = milliseconds
         self.daemon = True
         self.begin_ms = millis()
         self.callbacks = []
         self.callback_lock = threading.Lock()
+
+        self.next_callbacks = {}
+        self.current_callbacks = {}
+        self.has_next_callbacks = False
+
+        self.next_callbacks_lock = threading.Lock()
+        self.current_callbacks_lock = threading.Lock()
+
+        self.did_execute_loop_final = False
 
     def run(self):
         self.event.clear()
@@ -543,39 +556,84 @@ class LoopManager(threading.Thread):
         last_ms = millis()
         while True:
             now_ms = millis()
-            if now_ms - last_ms > self.milliseconds:
-                self.signal_loop()
-                last_ms = now_ms
+            percent_of_control_loop = (
+                float(now_ms) - float(last_ms)) / float(self.control_loop_duraton_ms)
 
-            self.execute_callbacks(now_ms)
+            if percent_of_control_loop > 1.0:
+                if self.did_execute_loop_final == True:
+                    self.new_loop()
+
+                    self.did_execute_loop_final = False
+                    last_ms = now_ms
+                    percent_of_control_loop = 0.0
+                else:
+                    self.did_execute_loop_final = True
+                    percent_of_control_loop = 1.0
+
+            self.execute_callbacks_new(percent_of_control_loop)
 
             time.sleep(0.01)
 
-    def execute_callbacks(self, now_ms):
+    def new_loop(self):
+        self.signal_loop()
+
+        log('new loop')
+
+        self.current_callbacks_lock.acquire()
+
+        if self.has_next_callbacks is True:
+            self.next_callbacks_lock.acquire()
+            self.promoto_next_callbacks()
+            self.has_next_callbacks = False
+            self.next_callbacks_lock.release()
+        else:
+            for callback_name in self.current_callbacks:
+                callback_array = self.current_callbacks[callback_name]
+
+                for callback_info in callback_array:
+                    callback_info['executed'] = False
+
+        self.current_callbacks_lock.release()
+
+    def execute_callbacks_new(self, percent_of_control_loop):
         """
         executes any scheduled callbacks
         """
-        self.callback_lock.acquire()
-        callbacks_clone = self.callbacks[:]
-        self.callback_lock.release()
+        self.current_callbacks_lock.acquire()
 
-        executed_callbacks = []
-        for callback in callbacks_clone:
-            if callback['ms'] == 0:
-                # execute immediately
-                callback['callback']()
-                executed_callbacks.append(callback)
-            else:
-                start_ms = callback['start']
-                if now_ms - start_ms > callback['ms']:
-                    callback['callback']()
-                    executed_callbacks.append(callback)
+        # pprint(percent_of_control_loop)
+        # pprint(self.current_callbacks)
 
-        self.callback_lock.acquire()
-        for callback in executed_callbacks:
-            self.callbacks.remove(callback)
+        for callback_name in self.current_callbacks:
+            callback_array = self.current_callbacks[callback_name]
 
-        self.callback_lock.release()
+            for callback_info in callback_array:
+                call_at_percent = callback_info['percent']
+                executed = callback_info['executed']
+
+                if executed != True and percent_of_control_loop >= call_at_percent:
+                    callback_info['callback']()
+                    callback_info['executed'] = True
+
+        self.current_callbacks_lock.release()
+
+    def schedule_callback_new(self, name, callback, percent):
+        """
+        schedule a callback to be called after a given amount of time.
+        callback will run on loop manager's thread
+        """
+        self.next_callbacks_lock.acquire()
+
+        if name not in self.next_callbacks:
+            self.next_callbacks[name] = []
+
+        self.next_callbacks[name].append({
+            'percent': percent,
+            'callback': callback,
+            'executed': False
+        })
+
+        self.next_callbacks_lock.release()
 
     def schedule_callback(self, callback, milliseconds):
         """
@@ -603,9 +661,18 @@ class LoopManager(threading.Thread):
         self.begin_ms = now_ms
         self.event.clear()
 
+    def promoto_next_callbacks(self):
+        """
+        moves the previous controller loop calcs into the current
+        """
+        self.current_callbacks = self.next_callbacks
+        self.next_callbacks = {}
+
     def next_iteration(self):
         """
         returns event for the control loop to wait on
         will probably do more stuff/logging here eventually
         """
+        self.has_next_callbacks = True
+
         return self.event

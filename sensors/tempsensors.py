@@ -2,6 +2,7 @@ import time
 import math
 from beerery.gpio import spireader
 import os
+import random
 
 os.system('modprobe w1-gpio')
 os.system('modprobe w1-therm')
@@ -109,6 +110,7 @@ class OneWireTempSensor(TempSensor):
         return lines
 
     def get_temp(self):
+      try:
         lines = self.read_temp_file()
         if lines[0].strip()[-3:] != 'YES':
             return 0
@@ -118,6 +120,9 @@ class OneWireTempSensor(TempSensor):
             temp_c = float(temp_string) / 1000.0
             temp_f = temp_c * 9.0 / 5.0 + 32.0
             return temp_f
+      except: 
+        time.sleep(random.uniform(1, 2))
+        return 0
 
     def timed_get_temp(self):
         """time how long it takes to get the temp"""

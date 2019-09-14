@@ -1,15 +1,4 @@
 [{
-	"type": "thermistor",
-	"active": false,
-	"adc_channel": 0,
-	"name": "MLTOLD",
-	"coefficients": {
-		"a": 0.0011371549,
-		"b": 0.0002325949,
-		"c": 0,
-		"d": 0.0000000954
-	}
-}, {
 	"type": "DS18B20",
 	"active": true,
 	"address": "28-000004f65c4d",
@@ -20,9 +9,8 @@
 	"address": "28-000004f68c0f",
 	"name": "HLT"
 }, {
-	"type": "TMP36",
-	"active": false,
-	"adc_channel": 2,
-	"adjustment": -2,
+	"type": "DS18B20",
+	"active": true,
+	"address": "28-000005a32e35",
 	"name": "BK"
 }]
