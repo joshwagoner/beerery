@@ -7,6 +7,7 @@ from datetime import datetime
 import beerery.sensors.tempsensors as tempsensors
 import beerery.loggers as loggers
 import beerery.pid as PID
+import beerery.manual as MANUAL
 import beerery.constants as constants
 import beerery.fileio as fileio
 import beerery.program as program
@@ -120,6 +121,8 @@ class Output(object):
                 output_handler.set_output_limits(0, 100)
             elif output_config["mode"] == constants.PWM_OUTPUT:
                 output_handler.set_output_limits(0, 100)
+        elif output_type_controller == constants.MANUAL_OUTPUT_CONTROLLER_TYPE:
+            output_handler = MANUAL.ManualController(**output_type["config"])
         else:
             raise Exception("Unknown output type '{}'".format(output_type))
 

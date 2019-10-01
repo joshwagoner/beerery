@@ -36,8 +36,13 @@
     }
   },
   {
-    "active": false,
-    "type": "manual",
+    "active": true,
+    "type": {
+      "controller": "manual",
+      "config": {
+        "on": false
+      }
+    },
     "name": "alarm",
     "pin": 25
   }
