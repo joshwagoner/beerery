@@ -1,7 +1,7 @@
 [
   {
     "name": "HLT",
-    "pin": 18,
+    "pin": 12,
     "mode": "TPC",
     "active": false,
     "input": "HLT",
@@ -19,9 +19,9 @@
   },
   {
     "name": "BK",
-    "pin": 22,
+    "pin": 15,
     "mode": "TPC",
-    "active": true,
+    "active": false,
     "input": "BK",
     "type": {
       "controller": "PID",
@@ -44,6 +44,6 @@
       }
     },
     "name": "alarm",
-    "pin": 25
+    "pin": 22
   }
 ]

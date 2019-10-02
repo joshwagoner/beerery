@@ -105,7 +105,7 @@ class Output(object):
         self.name = output_config["name"]
         self.controller = None
         self.input = output_config.get("input", None)
-        self.mode = output_config["mode"]
+        self.mode = output_config["mode"] if "mode" in output_config else "TPC" #TPC is the default
         self.pin = output_config["pin"]
         self.debug_millis = 0
 
@@ -138,6 +138,8 @@ class Output(object):
         output_type_controller = output_type["controller"]
         if output_type_controller == constants.PID_OUTPUT_CONTROLLER_TYPE:
             self.controller.update_config(output_type["config"])
+        elif output_type_controller == constants.MANUAL_OUTPUT_CONTROLLER_TYPE:
+            self.controller.update_config(output_type["config"])
         else:
             raise Exception("Unknown output type '{}'".format(output_type))
 
@@ -154,6 +156,11 @@ class Output(object):
         log("set_pin_low: {}".format(self.name))
         if GPIO.gpio_function(self.pin) == GPIO.OUT:
             GPIO.output(self.pin, GPIO.LOW)
+
+    def remove(self):
+        # on removal always set pin off
+        if self.pin:
+            self.set_pin_low();
 
     def calculate(self, input_object, input_value, period_ms, loop_manager):
         """
@@ -292,6 +299,7 @@ class Controller(object):
         # remove outputs that are no longer config'd
         for output in to_remove:
             log("removing: {}".format(output.name))
+            output.remove();
             del output_dict[output.name]
 
         # determine which config'd outputs already have an object
